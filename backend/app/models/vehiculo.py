@@ -1,56 +1,62 @@
-from sqlalchemy import Column, Integer, String, Float, Enum as SAEnum, CheckConstraint
+from sqlalchemy import Column, Integer, String, Text, DECIMAL, ForeignKey, CheckConstraint
+from sqlalchemy.orm import relationship
 from .base import Base
-import enum
-
-class TipoVehiculo(str, enum.Enum):
-    camioneta = "camioneta"
-    furgon = "furgón"
-    moto = "moto"
 
 class Vehiculo(Base):
     """
-    RF-01 - Gestión de Flota (Consigna EcoLogística Lima)
-
-    Campos requeridos por RF-01:
-      - placa, tipo, capacidad_carga_kg, consumo_combustible_km_l,
-        factor_emision_co2_kg_km, anio_fabricacion
-
-    FIX aplicado:
-      - Se AGREGAN consumo_combustible_km_l (km/L) y factor_emision_co2_kg_km (kg CO2/km)
-        que faltaban en la versión anterior.
-      - Se ELIMINAN latitud_base y longitud_base del formulario de registro.
-        Antes se solicitaban al registrar vehículo pero no son parte de RF-01.
-        La ubicación base se gestiona aparte (p. ej. sede en SJL) o vía asignación
-        de ruta, no como atributo obligatorio del vehículo.
-
-    Notas de dominio (Lima):
-      - Vehículos >15 años tienen factor de emisión alto (diésel ~0.21-0.28 kgCO2/km).
-      - Consumo típico: moto 35-45 km/L, camioneta diésel 8-12 km/L, furgón 6-9 km/L.
+    VEHICULOS según ER UML + compatibilidad RF-01.
+    RF-01 campos: placa, tipo (FK tipos_vehiculo), capacidad_kg, consumo_km_l, factor_co2, anio_fabricacion
+    UML añade: marca, modelo, capacidad_m3, tipo_combustible, costos, estado, etc.
+    BD PostgreSQL, 0 datos (solo DDL).
     """
     __tablename__ = "vehiculos"
 
-    id = Column(Integer, primary_key=True, index=True)
-    placa = Column(String(10), unique=True, nullable=False, index=True)
-    tipo = Column(SAEnum(TipoVehiculo, name="tipo_vehiculo"), nullable=False)
-    capacidad_carga_kg = Column(Float, nullable=False)
-    consumo_combustible_km_l = Column(Float, nullable=False)  # km/L - NUEVO
-    factor_emision_co2_kg_km = Column(Float, nullable=False)  # kg CO2/km - NUEVO
+    id_vehiculo = Column(Integer, primary_key=True, autoincrement=True)
+    id_tipo_vehiculo = Column(Integer, ForeignKey("tipos_vehiculo.id_tipo", ondelete="RESTRICT"), nullable=False)
+    placa = Column(String(15), unique=True, nullable=False)
+    marca = Column(String(50), nullable=True)
+    modelo = Column(String(50), nullable=True)
     anio_fabricacion = Column(Integer, nullable=False)
+    capacidad_kg = Column(DECIMAL(10, 2), nullable=False)
+    capacidad_m3 = Column(DECIMAL(10, 2), nullable=True)
+    consumo_km_l = Column(DECIMAL(10, 2), nullable=False)  # RF-01 consumo_km_l
+    factor_co2_kg_km = Column(DECIMAL(10, 4), nullable=False)  # RF-01 factor
+    tipo_combustible = Column(String(30), nullable=True)  # diésel, GNV, eléctrico
+    costo_adquisicion = Column(DECIMAL(12, 2), nullable=True)
+    valor_actual = Column(DECIMAL(12, 2), nullable=True)
+    depreciacion_anual = Column(DECIMAL(12, 2), nullable=True)
+    costo_soat_anual = Column(DECIMAL(12, 2), nullable=True)
+    costo_seguro_anual = Column(DECIMAL(12, 2), nullable=True)
+    estado = Column(String(20), default="disponible")
 
-    # Eliminado: latitud_base, longitud_base (no se solicitan al registrar)
+    tipo = relationship("TipoVehiculoCat", backref="vehiculos")
 
     __table_args__ = (
-        CheckConstraint("capacidad_carga_kg > 0", name="ck_capacidad_positiva"),
-        CheckConstraint("consumo_combustible_km_l > 0", name="ck_consumo_positivo"),
-        CheckConstraint("factor_emision_co2_kg_km > 0", name="ck_factor_positivo"),
-        CheckConstraint("factor_emision_co2_kg_km < 1", name="ck_factor_rango"),  # <1 kg/km realista
-        CheckConstraint("anio_fabricacion >= 1990 AND anio_fabricacion <= 2026", name="ck_anio_rango"),
+        CheckConstraint("capacidad_kg > 0", name="ck_veh_capacidad_positiva"),
+        CheckConstraint("consumo_km_l > 0", name="ck_veh_consumo_positivo"),
+        CheckConstraint("factor_co2_kg_km > 0 AND factor_co2_kg_km < 1", name="ck_veh_factor_rango"),
+        CheckConstraint("anio_fabricacion >= 1990 AND anio_fabricacion <= 2026", name="ck_veh_anio_rango"),
     )
 
+    # Propiedades de compatibilidad con código previo (RF-01 simple)
+    @property
+    def id(self):
+        return self.id_vehiculo
+
+    @property
+    def capacidad_carga_kg(self):
+        return float(self.capacidad_kg) if self.capacidad_kg else None
+
+    @property
+    def consumo_combustible_km_l(self):
+        return float(self.consumo_km_l) if self.consumo_km_l else None
+
+    @property
+    def factor_emision_co2_kg_km(self):
+        return float(self.factor_co2_kg_km) if self.factor_co2_kg_km else None
+
     def calcular_combustible(self, distancia_km: float) -> float:
-        """Litros = distancia / consumo (km/L)"""
-        return distancia_km / self.consumo_combustible_km_l
+        return float(distancia_km) / float(self.consumo_km_l)
 
     def calcular_emisiones(self, distancia_km: float) -> float:
-        """kg CO2 = distancia * factor (kgCO2/km)"""
-        return distancia_km * self.factor_emision_co2_kg_km
+        return float(distancia_km) * float(self.factor_co2_kg_km)

@@ -1,0 +1,36 @@
+version: "3.9"
+services:
+  db:
+    image: postgis/postgis:15-3.3
+    container_name: ecolima_db
+    environment:
+      POSTGRES_USER: ecolima
+      POSTGRES_PASSWORD: ecolima123
+      POSTGRES_DB: ecolima
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecolima"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: ecolima_backend
+    environment:
+      DATABASE_URL: postgresql://ecolima:ecolima123@db:5432/ecolima
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app
+
+volumes:
+  pgdata:
