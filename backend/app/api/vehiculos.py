@@ -4,12 +4,9 @@ from typing import List
 
 from ..models.vehiculo import Vehiculo
 from ..schemas.vehiculo import VehiculoCreate, VehiculoResponse, VehiculoUpdate
+from ..database import get_db
 
 router = APIRouter(prefix="/api/vehiculos", tags=["Flota"])
-
-# Dependencia placeholder - reemplazar con get_db real (PostgreSQL)
-def get_db():
-    raise NotImplementedError("Configurar sesión SQLAlchemy con PostgreSQL")
 
 @router.post("/", response_model=VehiculoResponse, status_code=201, summary="RF-01: Registrar vehículo")
 def crear_vehiculo(payload: VehiculoCreate, db: Session = Depends(get_db)):

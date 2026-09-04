@@ -3,10 +3,8 @@ from typing import Literal
 import re
 
 class VehiculoBase(BaseModel):
+    """Schema base para RF-01. No incluye latitud_base/longitud_base."""
     model_config = ConfigDict(extra="forbid")
-    """
-    Schema base para RF-01. No incluye latitud_base/longitud_base.
-    """
     placa: str = Field(..., description="Placa según MTC Perú", examples=["ABC-123", "B7C-890"])
     tipo: Literal["camioneta", "furgón", "moto"] = Field(..., description="Tipo de vehículo")
     capacidad_carga_kg: float = Field(..., gt=0, description="Capacidad de carga en kg")

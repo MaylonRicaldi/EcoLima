@@ -1,11 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .api.vehiculos import router as vehiculos_router
+from .api.pedidos import router as pedidos_router
 
 app = FastAPI(
-    title="EcoLima - Gestión de Flota",
-    description="API RF-01: Gestión de vehículos con consumo (km/L) y factor emisión (kgCO2/km). Sin latitud_base/longitud_base en registro.",
-    version="1.0.0",
+    title="EcoLima - Optimizador de Rutas Sostenibles",
+    description="API RF-01 Flota (consumo km/L, factor kgCO2/km) y RF-02 Pedidos (ID cliente, dirección, GPS dual, peso, volumen, ventana manual, prioridad, tipo).",
+    version="1.1.0",
 )
 
 app.add_middleware(
@@ -17,10 +18,23 @@ app.add_middleware(
 )
 
 app.include_router(vehiculos_router)
+app.include_router(pedidos_router)
+
+@app.on_event("startup")
+def startup():
+    try:
+        from .database import init_db
+        init_db()
+    except Exception as e:
+        print(f"DB init warning: {e}")
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "EcoLima Flota"}
+    return {"status": "ok", "service": "EcoLima RF-01/RF-02"}
+
+@app.get("/")
+def root():
+    return {"message": "EcoLima API", "docs": "/docs", "health": "/health"}
 
 # Ejemplo curl:
 # curl -X POST http://localhost:8000/api/vehiculos/ -H "Content-Type: application/json" -d '{

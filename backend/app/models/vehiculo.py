@@ -1,8 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, Enum as SAEnum, CheckConstraint
-from sqlalchemy.orm import declarative_base
+from .base import Base
 import enum
-
-Base = declarative_base()
 
 class TipoVehiculo(str, enum.Enum):
     camioneta = "camioneta"
