@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+venv/
+.venv/
+env/
+*.egg-info/
+# FastAPI / Node
+node_modules/
+dist/
+build/
+# DB
+*.db
+*.sqlite
+# OS
+.DS_Store
+Thumbs.db
+# IDE
+.vscode/
+.idea/

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es-PE">
+<head>
+<meta charset="UTF-8">
+<title>EcoLima - Registrar Vehículo (RF-01)</title>
+<style>body{font-family:system-ui;max-width:600px;margin:2rem auto}label{display:block;margin:0.6rem 0}input,select{width:100%;padding:0.4rem}small{color:#666}button{margin-top:1rem;padding:0.6rem 1.2rem;background:#0a7d3a;color:#fff;border:0;cursor:pointer}.error{color:#b00020}</style>
+</head>
+<body>
+<h1>EcoLima - Gestión de Flota</h1>
+<p>RF-01: Placa, tipo, capacidad, <b>consumo (km/L)</b>, <b>factor emisión (kgCO2/km)</b>, año. Sin lat/long base.</p>
+<form id="vehiculoForm">
+  <label>Placa* <input name="placa" placeholder="ABC-123" required></label>
+  <label>Tipo* <select name="tipo"><option>camioneta</option><option>furgón</option><option>moto</option></select></label>
+  <label>Capacidad carga (kg)* <input type="number" name="capacidad_carga_kg" step="0.1" min="1" required></label>
+  <label>Consumo combustible (km/L)* <input type="number" name="consumo_combustible_km_l" step="0.1" min="0.1" max="100" placeholder="10.5" required></label>
+  <label>Factor emisión CO₂ (kgCO₂/km)* <input type="number" name="factor_emision_co2_kg_km" step="0.01" min="0.01" max="0.99" placeholder="0.22" required></label>
+  <label>Año fabricación* <input type="number" name="anio_fabricacion" min="1990" max="2026" value="2018" required></label>
+  <!-- latitud_base y longitud_base eliminados -->
+  <button type="submit">Registrar</button>
+  <p id="msg"></p>
+</form>
+<script>
+document.getElementById('vehiculoForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const payload = {
+    placa: fd.get('placa').trim().toUpperCase(),
+    tipo: fd.get('tipo'),
+    capacidad_carga_kg: parseFloat(fd.get('capacidad_carga_kg')),
+    consumo_combustible_km_l: parseFloat(fd.get('consumo_combustible_km_l')),
+    factor_emision_co2_kg_km: parseFloat(fd.get('factor_emision_co2_kg_km')),
+    anio_fabricacion: parseInt(fd.get('anio_fabricacion'))
+  };
+  // Validación: no incluir latitud_base/longitud_base
+  const res = await fetch('/api/vehiculos/', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+  const msg = document.getElementById('msg');
+  if(res.ok){ const d=await res.json(); msg.textContent='Registrado: '+d.placa; msg.style.color='green';} else { const err=await res.json(); msg.textContent='Error: '+(err.detail||res.statusText); msg.style.color='red';}
+});
+</script>
+</body>
+</html>
