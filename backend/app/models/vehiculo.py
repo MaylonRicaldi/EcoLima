@@ -2,6 +2,13 @@ from sqlalchemy import Column, Integer, String, Text, DECIMAL, ForeignKey, Check
 from sqlalchemy.orm import relationship
 from .base import Base
 
+try:
+    from geoalchemy2 import Geography
+    GeoType = Geography(geometry_type="POINT", srid=4326)
+except ImportError:
+    from sqlalchemy import Text as GeoFallback
+    GeoType = Text
+
 class Vehiculo(Base):
     """
     VEHICULOS según ER UML + compatibilidad RF-01.
@@ -28,6 +35,10 @@ class Vehiculo(Base):
     costo_soat_anual = Column(DECIMAL(12, 2), nullable=True)
     costo_seguro_anual = Column(DECIMAL(12, 2), nullable=True)
     estado = Column(String(20), default="disponible")
+    # Base operativa para mapa RF-04 - opcional, no requerido en registro RF-01 (corrige bug home_latitude)
+    home_latitude = Column(DECIMAL(10, 7), nullable=True)
+    home_longitude = Column(DECIMAL(10, 7), nullable=True)
+    home_ubicacion = Column(GeoType, nullable=True)
 
     tipo = relationship("TipoVehiculoCat", backref="vehiculos")
 

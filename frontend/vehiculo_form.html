@@ -15,7 +15,12 @@
   <label>Consumo combustible (km/L)* <input type="number" name="consumo_combustible_km_l" step="0.1" min="0.1" max="100" placeholder="10.5" required></label>
   <label>Factor emisión CO₂ (kgCO₂/km)* <input type="number" name="factor_emision_co2_kg_km" step="0.01" min="0.01" max="0.99" placeholder="0.22" required></label>
   <label>Año fabricación* <input type="number" name="anio_fabricacion" min="1990" max="2026" value="2018" required></label>
-  <!-- latitud_base y longitud_base eliminados -->
+  <fieldset style="border:1px solid #ddd;padding:10px;border-radius:8px">
+    <legend>Base operativa (opcional) - para mapa</legend>
+    <small>Fix home_latitude bug: antes faltaba v. y crasheaba. Ahora opcional.</small>
+    <label>home_latitude <input type="number" step="0.000001" name="home_latitude" placeholder="-12.006"></label>
+    <label>home_longitude <input type="number" step="0.000001" name="home_longitude" placeholder="-77.012"></label>
+  </fieldset>
   <button type="submit">Registrar</button>
   <p id="msg"></p>
 </form>
@@ -29,9 +34,10 @@ document.getElementById('vehiculoForm').addEventListener('submit', async (e)=>{
     capacidad_carga_kg: parseFloat(fd.get('capacidad_carga_kg')),
     consumo_combustible_km_l: parseFloat(fd.get('consumo_combustible_km_l')),
     factor_emision_co2_kg_km: parseFloat(fd.get('factor_emision_co2_kg_km')),
-    anio_fabricacion: parseInt(fd.get('anio_fabricacion'))
+    anio_fabricacion: parseInt(fd.get('anio_fabricacion')),
+    ...(fd.get('home_latitude') ? {home_latitude: parseFloat(fd.get('home_latitude'))} : {}),
+    ...(fd.get('home_longitude') ? {home_longitude: parseFloat(fd.get('home_longitude'))} : {}),
   };
-  // Validación: no incluir latitud_base/longitud_base
   const res = await fetch('/api/vehiculos/', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
   const msg = document.getElementById('msg');
   if(res.ok){ const d=await res.json(); msg.textContent='Registrado: '+d.placa; msg.style.color='green';} else { const err=await res.json(); msg.textContent='Error: '+(err.detail||res.statusText); msg.style.color='red';}

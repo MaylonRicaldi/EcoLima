@@ -1,5 +1,4 @@
 -- EcoLogística Lima - DDL PostgreSQL/PostGIS - 0 datos
--- Generado desde ER UML PlantUML - 19 entidades
 CREATE EXTENSION IF NOT EXISTS postgis;
 
 
@@ -244,6 +243,9 @@ CREATE TABLE vehiculos (
 	costo_soat_anual DECIMAL(12, 2), 
 	costo_seguro_anual DECIMAL(12, 2), 
 	estado VARCHAR(20), 
+	home_latitude DECIMAL(10, 7), 
+	home_longitude DECIMAL(10, 7), 
+	home_ubicacion TEXT, 
 	PRIMARY KEY (id_vehiculo), 
 	CONSTRAINT ck_veh_capacidad_positiva CHECK (capacidad_kg > 0), 
 	CONSTRAINT ck_veh_consumo_positivo CHECK (consumo_km_l > 0), 
@@ -346,4 +348,3 @@ CREATE TABLE licencias (
 
 ;
 
--- 0 datos: solo esquema, sin INSERTs

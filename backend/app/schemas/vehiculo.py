@@ -16,6 +16,9 @@ class VehiculoBase(BaseModel):
     modelo: Optional[str] = Field(None, max_length=50)
     capacidad_m3: Optional[float] = Field(None, gt=0)
     tipo_combustible: Optional[Literal["diésel", "diesel", "GNV", "eléctrico", "electrico", "gasolina"]] = None
+    # Base operativa para mapa - opcional, corrige bug home_latitude && v.home_longitude
+    home_latitude: Optional[float] = Field(None, ge=-18, le=0, description="Latitud base operativa (SJL aprox -12.006), no requerida en registro")
+    home_longitude: Optional[float] = Field(None, ge=-82, le=-68, description="Longitud base operativa")
 
     @field_validator("placa")
     @classmethod
@@ -52,6 +55,8 @@ class VehiculoUpdate(BaseModel):
     capacidad_m3: Optional[float] = Field(None, gt=0)
     tipo_combustible: Optional[str] = None
     estado: Optional[str] = None
+    home_latitude: Optional[float] = Field(None, ge=-18, le=0)
+    home_longitude: Optional[float] = Field(None, ge=-82, le=-68)
 
 class VehiculoResponse(VehiculoBase):
     model_config = ConfigDict(from_attributes=True, extra="forbid")
@@ -59,3 +64,5 @@ class VehiculoResponse(VehiculoBase):
     # Campos UML visibles en respuesta
     id_vehiculo: Optional[int] = None
     estado: Optional[str] = None
+    home_latitude: Optional[float] = None
+    home_longitude: Optional[float] = None

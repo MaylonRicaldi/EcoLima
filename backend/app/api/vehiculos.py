@@ -22,7 +22,7 @@ def get_or_create_tipo(db: Session, nombre: str) -> TipoVehiculoCat:
     return tipo
 
 def to_response(v: Vehiculo) -> dict:
-    # Mapear modelo UML a schema RF-01
+    # Mapear modelo UML a schema RF-01 + fix home_latitude/longitude para mapa
     return {
         "placa": v.placa,
         "tipo": v.tipo.nombre if v.tipo else "camioneta",
@@ -37,6 +37,8 @@ def to_response(v: Vehiculo) -> dict:
         "id": v.id_vehiculo,
         "id_vehiculo": v.id_vehiculo,
         "estado": v.estado,
+        "home_latitude": float(v.home_latitude) if v.home_latitude is not None else None,
+        "home_longitude": float(v.home_longitude) if v.home_longitude is not None else None,
     }
 
 @router.post("/", response_model=VehiculoResponse, status_code=201, summary="RF-01: Registrar vehículo (ER VEHICULOS + TIPOS_VEHICULO)")
@@ -56,6 +58,8 @@ def crear_vehiculo(payload: VehiculoCreate, db: Session = Depends(get_db)):
         factor_co2_kg_km=payload.factor_emision_co2_kg_km,
         tipo_combustible=payload.tipo_combustible or ("diésel" if payload.tipo != "moto" else "gasolina"),
         estado="disponible",
+        home_latitude=payload.home_latitude,
+        home_longitude=payload.home_longitude,
     )
     db.add(vehiculo)
     db.commit()
