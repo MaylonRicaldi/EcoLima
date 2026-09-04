@@ -2,18 +2,18 @@ version: "3.9"
 services:
   db:
     image: postgis/postgis:15-3.3
-    container_name: ecolima_db
+    container_name: ecologistica-lima-db-1
     environment:
-      POSTGRES_USER: ecolima
-      POSTGRES_PASSWORD: ecolima123
-      POSTGRES_DB: ecolima
+      POSTGRES_USER: ecologistica
+      POSTGRES_PASSWORD: ecologistica
+      POSTGRES_DB: ecologistica_lima
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./backend/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ecolima"]
+      test: ["CMD-SHELL", "pg_isready -U ecologistica -d ecologistica_lima"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -22,7 +22,7 @@ services:
     build: ./backend
     container_name: ecolima_backend
     environment:
-      DATABASE_URL: postgresql://ecolima:ecolima123@db:5432/ecolima
+      DATABASE_URL: postgresql://ecologistica:ecologistica@db:5432/ecologistica_lima
     ports:
       - "8000:8000"
     depends_on:

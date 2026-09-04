@@ -6,11 +6,11 @@ from .models.base import Base
 
 load_dotenv()
 
-# PostgreSQL por defecto (según ER UML), 0 datos. Fallback a SQLite solo para tests sin Docker.
-# Ejemplo: postgresql://ecolima:ecolima123@localhost:5432/ecolima
+# PostgreSQL por defecto (según ER UML) - BD ecologistica_lima, 0 datos. Fallback a SQLite solo para tests sin Docker.
+# Ejemplo: postgresql://ecologistica:ecologistica@localhost:5432/ecologistica_lima
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://ecolima:ecolima123@localhost:5432/ecolima"
+    "postgresql://ecologistica:ecologistica@localhost:5432/ecologistica_lima"
 )
 
 # Si no hay driver psycopg2 disponible en test local sin Postgres, usar SQLite en memoria para validación
