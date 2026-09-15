@@ -1,4 +1,4 @@
-Ingresa tu texto:03 Registro de Riesgos V_1.0.0
+03 Registro de Riesgos V_1.0.0
 
 **Proyecto:** EcoLogística Lima – Optimizador de Rutas Sostenibles para "DistriRápido S.A.C."
 **Curso:** Taller de Proyectos 2
