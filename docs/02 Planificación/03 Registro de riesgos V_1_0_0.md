@@ -1,6 +1,6 @@
 [← Volver al README Principal](../../README.md)
 
-03 Registro de Riesgos V_1.0.0
+# 03. Registro de Riesgos V_1.0.0
 
 **Proyecto:** EcoLogística Lima – Optimizador de Rutas Sostenibles para "DistriRápido S.A.C."
 **Curso:** Taller de Proyectos 2
@@ -89,8 +89,6 @@ Severidad (Exposición) = Probabilidad (1 a 5) × Impacto (1 a 5)
 
 Los riesgos de severidad **Alta** (RSK-03 y RSK-04) están directamente ligados al núcleo funcional del proyecto —calidad de datos de tráfico y desempeño del algoritmo de optimización (RF-03/RNF-01)— por lo que requieren revisión semanal por parte del equipo técnico durante las Iteraciones 2 y 3, mientras que los riesgos de severidad Media se revisarán en cada cierre de iteración (cada 3–4 semanas) según el cronograma del proyecto.
 
-## 6. Control de Versiones
+---
 
-| Versión | Fecha      | Descripción                                                  | Autor                    |
-| ------- | ---------- | ------------------------------------------------------------ | ------------------------ |
-| V_1.0.0 | 14/09/2026 | Versión inicial del Registro de Riesgos con matriz cuantitativa (P × I) y planes de mitigación/contingencia. | Equipo EcoLogística Lima |
+**Versión del documento:** 1.0.0
