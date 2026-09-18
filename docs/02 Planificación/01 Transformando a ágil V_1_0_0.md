@@ -448,3 +448,8 @@ La transformación ágil permite convertir la línea base de requisitos de EcoLi
 Los requerimientos funcionales se organizaron en cinco épicas y se descompusieron en historias de usuario. Los requerimientos no funcionales se transformaron en Enablers técnicos relacionados con seguridad, calidad, pruebas, despliegue y documentación.
 
 Esta estructura constituye la base para la planificación y gestión del proyecto en Jira Software, donde posteriormente se organizan el backlog, el Sprint 1, el tablero Scrum y el release del producto.
+
+---
+
+**Versión del documento:** 1.0.0
+
