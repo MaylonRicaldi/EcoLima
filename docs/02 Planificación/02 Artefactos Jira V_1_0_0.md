@@ -2,7 +2,7 @@
 
 # 02. Artefactos Jira
 
-Este documento presenta las evidencias de la configuración y planificación del proyecto **EcoLima** en Jira, incluyendo el roadmap, backlog priorizado, planificación del Sprint 1, tablero Scrum y release.
+Este documento presenta las evidencias de la configuración y planificación del proyecto **Ecologistica Lima – Optimizador de Rutas Sostenibles para DistriRápido S.A.C.** en Jira, incluyendo el roadmap, backlog priorizado, planificación del Sprint 1, tablero Scrum y release.
 
 ---
 
@@ -69,3 +69,7 @@ La configuración del release evidencia la versión **EcoLima MVP 1.0.0**, junto
 | 3 | Sprint Planning y Sprint Goal | Sprint 1 y meta del sprint |
 | 4 | Tablero Scrum Activo | Flujo de trabajo con cuatro columnas |
 | 5 | Release | EcoLima MVP 1.0.0 y actividades asociadas |
+
+---
+
+**Versión del documento:** 1.0.0
