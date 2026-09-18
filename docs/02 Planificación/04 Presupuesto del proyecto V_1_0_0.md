@@ -1,7 +1,7 @@
 ← Volver al README Principal
 # 04 Presupuesto del Proyecto — PMV "EcoLogística Lima"
 
-**Proyecto:** Ecologistica Lima – Optimizador de Rutas Sostenibles para DistriRápido SAC
+**Proyecto:** Ecologistica Lima – Optimizador de Rutas Sostenibles para DistriRápido SAC 
 
 ---
 
