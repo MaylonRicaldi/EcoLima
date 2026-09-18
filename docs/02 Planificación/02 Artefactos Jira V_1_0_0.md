@@ -1,3 +1,5 @@
+[← Volver al README Principal](../../README.md)
+
 # 02. Artefactos Jira
 
 Este documento presenta las evidencias de la configuración y planificación del proyecto **EcoLima** en Jira, incluyendo el roadmap, backlog priorizado, planificación del Sprint 1, tablero Scrum y release.
