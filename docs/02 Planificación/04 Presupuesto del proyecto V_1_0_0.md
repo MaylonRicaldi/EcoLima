@@ -84,10 +84,5 @@ Los costos de licenciamiento e infraestructura corresponden a las herramientas y
 
 ---
 
-## Historial de Control de Cambios
+**Versión del documento:** 1.0.0
 
-| Versión | Fecha | Descripción del Cambio | Autor |
-|---|---|---|---|
-| V_1_0_0 | 11/09/2026 | Creación inicial del artefacto de presupuesto. | Equipo EcoLogística Lima |
-
----
