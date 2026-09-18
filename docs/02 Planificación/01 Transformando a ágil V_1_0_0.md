@@ -1,154 +1,391 @@
-# Transformando a ágil
+# 01. Transformando a Ágil
 
-## A. Metodología de Transformación
+## 1. Introducción
 
-### 1. Requerimientos Funcionales (RF)
+El presente documento describe la transformación de la línea base de requisitos del proyecto EcoLima hacia una estructura de trabajo ágil utilizando Scrum.
 
-Los Requerimientos Funcionales (RF) de EcoLogística Lima se transformarán a una estructura ágil mediante su agrupación en Épicas y posterior descomposición en Historias de Usuario (US). El proyecto cuenta con 11 Requerimientos Funcionales, desde RF-001 hasta RF-011, relacionados con la gestión de flota, pedidos, optimización y visualización de rutas, sostenibilidad, conductores, clientes y autenticación.
+La transformación establece una relación entre los requerimientos funcionales, los requerimientos no funcionales, las épicas, las historias de usuario y las historias técnicas (Enablers). Esta estructura permite organizar el trabajo del producto y posteriormente gestionarlo mediante Jira Software.
 
-La transformación seguirá la siguiente estructura:
+## 2. Metodología de Transformación
 
-**Requerimiento Funcional → Épica → Historia de Usuario → Criterios de Aceptación**
+## 2.1 Requerimientos Funcionales
 
-Los RF que pertenezcan a una misma capacidad o área funcional podrán agruparse dentro de una misma Épica. Posteriormente, cada Épica será dividida en Historias de Usuario que representen funcionalidades concretas y manejables para los usuarios del sistema.
+Los requerimientos funcionales de EcoLima se transforman en Épicas, que representan grandes módulos funcionales del sistema.
 
-Para realizar esta transformación se considerarán los siguientes criterios:
+Posteriormente, cada épica se descompone en Historias de Usuario, las cuales representan funcionalidades concretas que generan valor para los usuarios del sistema.
 
-- **Agrupación por funcionalidad:** se relacionarán los RF que pertenezcan a una misma capacidad del sistema.
-- **Identificación del usuario:** cada Historia de Usuario se asociará con el actor que utiliza o se beneficia de la funcionalidad.
-- **Descomposición:** cuando un RF incluya varias operaciones diferenciadas, podrá dividirse en varias Historias de Usuario.
-- **Trazabilidad:** cada Historia de Usuario deberá mantener la relación con el RF que le dio origen.
-- **Reglas de negocio:** se considerarán las reglas de negocio asociadas a cada RF para asegurar que las Historias de Usuario representen correctamente las condiciones del sistema.
-- **Priorización:** se tendrá en cuenta la prioridad definida para cada RF, dando especial atención a los requisitos clasificados como de prioridad Alta.
+La relación establecida es:
 
-Los actores utilizados para redactar las Historias de Usuario serán principalmente Administrador, Operador/Técnico Logístico, Conductor, Auditor Externo y Usuario Final/Cliente, identificados como usuarios directos del sistema.
+Requerimiento Funcional → Épica → Historia de Usuario
 
-La descomposición de un RF podrá realizarse cuando este contenga varias funcionalidades que puedan gestionarse de manera independiente. Por ejemplo, RF-001 contempla el registro, actualización, consulta y deshabilitación lógica de vehículos, por lo que estas operaciones pueden convertirse en Historias de Usuario independientes cuando resulte conveniente para facilitar su desarrollo y seguimiento.
+## 2.2 Requerimientos No Funcionales
 
-La transformación mantendrá la trazabilidad mediante una relación como la siguiente:
+Los requerimientos no funcionales relacionados con seguridad, rendimiento, arquitectura, calidad y despliegue se transforman en Historias Técnicas o Enablers.
 
-**RF-001 → EP-01 → US-001**
+Estos elementos permiten preparar y mantener la infraestructura técnica necesaria para que las historias funcionales puedan desarrollarse y operar adecuadamente.
 
-De esta forma, será posible identificar qué requisito funcional dio origen a cada Épica e Historia de Usuario.
+La relación establecida es:
 
-Asimismo, las reglas de negocio asociadas a los requisitos serán consideradas durante la definición de las Historias de Usuario y sus criterios de aceptación. Por ejemplo, la generación de rutas (RF-003) está condicionada por reglas relacionadas con emisiones de CO₂, jornadas y descansos de los conductores, ventanas de tiempo, capacidad de los vehículos, prioridades de pedidos y restricciones ambientales.
+Requerimiento No Funcional → Enabler / Historia Técnica
 
-Finalmente, cada Historia de Usuario será revisada para verificar que:
+Algunos requerimientos no funcionales también se consideran transversalmente como criterios de aceptación y parte de la Definition of Done del proyecto.
 
-- Corresponda a un RF existente.
-- Tenga un usuario o rol claramente identificado.
-- Represente una funcionalidad concreta.
-- Pertenezca a una Épica.
-- Mantenga trazabilidad con el requisito original.
-- Considere las reglas de negocio relacionadas.
-- Pueda ser validada mediante criterios de aceptación.
+## 3. Estructura de Épicas
 
-Con esta metodología, los Requerimientos Funcionales se convertirán en elementos de trabajo más pequeños y comprensibles, facilitando su organización posterior en el Product Backlog y su gestión mediante Jira.
+A partir de los requerimientos funcionales del sistema EcoLima se establecieron las siguientes épicas:
 
-### 2. Requerimientos No Funcionales (RNF)
+## 4. Historias de Usuario
 
-Los Requerimientos No Funcionales (RNF) se transformarán principalmente en Historias Técnicas (Enablers) cuando requieran un trabajo específico de infraestructura, arquitectura, seguridad, rendimiento o calidad. Cuando un RNF pueda verificarse directamente sobre una funcionalidad, se incorporará como Criterio de Aceptación o como parte de la Definition of Done (DoD). El proyecto cuenta con 10 RNF relacionados con rendimiento, seguridad, disponibilidad, escalabilidad, usabilidad, compatibilidad, mantenibilidad, eficiencia, precisión y privacidad.
+### US-001 – Login con bloqueo y expiración de sesión
 
-La transformación seguirá este criterio:
-
-**RNF → Enabler técnico / Criterio de Aceptación / DoD**
-
-| RNF | Tratamiento ágil |
-|---|---|
-| RNF-001 Rendimiento | Enabler técnico + criterios de aceptación |
-| RNF-002 Seguridad | Enabler técnico + DoD |
-| RNF-003 Disponibilidad | Enabler técnico |
-| RNF-004 Escalabilidad | Enabler técnico |
-| RNF-005 Usabilidad y accesibilidad | Criterios de aceptación + DoD |
-| RNF-006 Compatibilidad | Criterios de aceptación |
-| RNF-007 Mantenibilidad | DoD |
-| RNF-008 Eficiencia | Enabler técnico + criterios de aceptación |
-| RNF-009 Precisión funcional | Criterios de aceptación |
-| RNF-010 Privacidad | Enabler técnico + DoD |
-
-Por ejemplo, RNF-001 puede generar una Historia Técnica relacionada con mejorar el rendimiento de la optimización de rutas, mientras que RNF-005 puede aplicarse como criterio de aceptación en las historias relacionadas con las interfaces del sistema.
-
-Los Enablers tendrán una estructura sencilla:
-
-> Como equipo técnico, queremos [realizar una mejora técnica], para [cumplir una necesidad de calidad del sistema].
-
-**Ejemplo:**
-
-> **EN-001:** Como equipo técnico, queremos optimizar el procesamiento de las rutas, para que la generación de rutas cumpla con el tiempo de respuesta establecido.
-
-La transformación permitirá mantener los RNF presentes en el Product Backlog sin convertir cada requisito de calidad en una historia funcional independiente. Además, facilita su seguimiento y validación durante el desarrollo mediante criterios de aceptación y la DoD.
-
-## B. Estructura Estándar de Historias de Usuario (US)
-
-Cada Historia de Usuario (US) será redactada utilizando una estructura uniforme que permita identificar claramente al usuario, la funcionalidad solicitada y el valor que esta aporta al proyecto.
-
-La estructura establecida será:
-
-```text
 ID: US-001
 
-Título: [Título descriptivo]
+Jira: HU-01
 
-Épica Relacionada: EP-01 [Nombre de la Épica]
+Título: Login con bloqueo y expiración de sesión
 
-Redacción:
+Épica Relacionada: EP-01 Gestión de acceso y usuarios
 
-Como [Rol / Tipo de Usuario],
+Redacción
 
-quiero [Acción / Funcionalidad deseada],
+Como usuario del sistema,
 
-para [Beneficio / Valor de Negocio esperado].
-```
+quiero iniciar sesión mediante mis credenciales y contar con mecanismos de bloqueo y expiración de sesión,
 
-Para mantener la calidad y trazabilidad de las historias, cada US deberá:
+para acceder al sistema de forma segura y evitar accesos no autorizados.
 
-- Tener un ID único.
-- Contar con un título claro y descriptivo.
-- Estar relacionada con una Épica.
-- Identificar un rol o tipo de usuario.
-- Describir una acción o funcionalidad concreta.
-- Expresar el beneficio o valor de negocio esperado.
-- Mantener correspondencia con el Requerimiento Funcional (RF) de origen.
-- Considerar las reglas de negocio que correspondan.
+Criterios de Aceptación
 
-Esta estructura será utilizada para las Historias de Usuario que conformarán el Product Backlog de EcoLogística Lima.
+Escenario 1: Inicio de sesión exitoso
 
-## C. Criterios de Aceptación bajo Sintaxis BDD (Gherkin)
+**Dado** que el usuario tiene credenciales válidas,
 
-Toda Historia de Usuario (US) y cada Enabler deberá contar con al menos **dos (2) Criterios de Aceptación**, utilizando la sintaxis BDD (Gherkin) para describir de manera clara y verificable el comportamiento esperado del sistema.
+**Cuando** ingresa correctamente su usuario y contraseña,
 
-Cada criterio seguirá la siguiente estructura:
+**Entonces** el sistema debe permitirle ingresar al sistema.
 
-```text
-Escenario: [Título descriptivo del escenario]
+Escenario 2: Bloqueo por intentos incorrectos
 
-Dado [Contexto previo o precondición del sistema]
+**Dado** que el usuario ingresa credenciales incorrectas de manera consecutiva, **Cuando** alcanza el límite de intentos establecido,
 
-Cuando [Acción o evento ejecutado por el usuario o sistema]
+**Entonces** el sistema debe bloquear temporalmente el acceso de la cuenta.
 
-Entonces [Resultado esperado o estado final verificable]
-```
+### US-002 – Registrar vehículo de flota
 
-Los criterios deberán:
+ID: US-002
 
-- Estar relacionados directamente con la US o Enabler correspondiente.
-- Describir condiciones que puedan ser comprobadas.
-- Utilizar situaciones claras y realistas para el alcance del proyecto.
-- Considerar las reglas de negocio cuando correspondan.
-- Incluir como mínimo dos escenarios por cada US o Enabler.
+Jira: HU-02
 
-Estos criterios servirán posteriormente para validar las Historias de Usuario y Enablers durante su implementación y seguimiento en Jira.
+Título: Registrar vehículo de flota
 
-## D. Definition of Done (DoD) Global del Proyecto
+Épica Relacionada: EP-02 Gestión de flota y conductores Redacción
 
-Una Historia de Usuario (US) o Enabler se considerará **Done** cuando cumpla con todos los siguientes criterios de calidad:
+Como responsable de la gestión de flota,
 
-- **Pruebas unitarias:** se alcanza una cobertura de pruebas unitarias **≥ 80%**.
-- **Análisis de código:** el análisis estático mediante SonarQube o CodeQL no presenta vulnerabilidades críticas.
-- **Revisión de código:** el código cuenta con un Peer Review aprobado por al menos un integrante técnico, realizado mediante un Pull Request.
-- **Despliegue:** la funcionalidad puede ser desplegada de forma automatizada en el ambiente de Staging/Pruebas.
-- **Documentación:** la documentación de la API o del código relacionado se encuentra actualizada, utilizando OpenAPI/Swagger cuando corresponda.
-- **Criterios de aceptación:** se cumplen los criterios de aceptación definidos mediante Gherkin para la US.
-- **Integración:** la funcionalidad se encuentra integrada correctamente con el código existente y no genera errores en las pruebas realizadas.
+quiero registrar los vehículos utilizados en la operación logística, para mantener actualizada la información de la flota disponible. Criterios de Aceptación
 
-**Regla general:** si alguno de los criterios anteriores no se cumple, la Historia de Usuario no podrá considerarse Done y deberá permanecer en el estado correspondiente hasta completar las condiciones pendientes.
+Escenario 1: Registro de vehículo válido
+
+**Dado** que el responsable se encuentra en el módulo de gestión de flota, **Cuando** ingresa correctamente los datos requeridos del vehículo, **Entonces** el sistema debe registrar el vehículo y mostrarlo en la lista de flota. Escenario 2: Validación de datos obligatorios
+
+**Dado** que el responsable intenta registrar un vehículo,
+
+**Cuando** omite uno o más datos obligatorios,
+
+**Entonces** el sistema debe mostrar un mensaje indicando los campos que deben ser completados.
+
+### US-003 – Registrar conductor con validación legal
+
+ID: US-003
+
+Jira: HU-04
+
+Título: Registrar conductor con validación legal
+
+Épica Relacionada: EP-02 Gestión de flota y conductores
+
+Redacción
+
+Como responsable de la gestión de conductores,
+
+quiero registrar conductores validando la información legal requerida,
+
+para asegurar que los conductores registrados cuenten con la información necesaria para realizar la operación logística.
+
+Criterios de Aceptación
+
+Escenario 1: Registro de conductor válido
+
+**Dado** que el responsable se encuentra en el módulo de conductores, **Cuando** ingresa los datos requeridos y estos cumplen las validaciones establecidas, **Entonces** el sistema debe registrar al conductor correctamente. Escenario 2: Datos legales no válidos
+
+**Dado** que el responsable intenta registrar un conductor,
+
+**Cuando** la información legal requerida no cumple las validaciones establecidas, **Entonces** el sistema debe impedir el registro y mostrar el motivo del rechazo.
+
+### US-004 – Registrar pedido con referencia y GPS
+
+ID: US-004
+
+Jira: HU-05
+
+Título: Registrar pedido con referencia y GPS
+
+Épica Relacionada: EP-03 Gestión de pedidos
+
+Redacción
+
+Como usuario responsable de gestionar pedidos,
+
+quiero registrar un pedido con su referencia y ubicación GPS,
+
+para disponer de la información necesaria para su posterior planificación y generación de rutas.
+
+Criterios de Aceptación
+
+Escenario 1: Registro de pedido válido
+
+**Dado** que el usuario se encuentra en el módulo de pedidos,
+
+**Cuando** registra la información requerida junto con la referencia y ubicación GPS, **Entonces** el sistema debe guardar correctamente el pedido.
+
+Escenario 2: Ubicación GPS no válida
+
+**Dado** que el usuario intenta registrar un pedido,
+
+**Cuando** la ubicación GPS ingresada no cumple el formato o validación establecida, **Entonces** el sistema debe solicitar una ubicación válida y no completar el registro.
+
+### US-005 – Generar rutas optimizadas
+
+ID: US-005
+
+Jira: HU-07
+
+Título: Generar rutas optimizadas
+
+Épica Relacionada: EP-04 Optimización y planificación de rutas Redacción
+
+Como responsable de la planificación logística,
+
+quiero generar rutas optimizadas utilizando los pedidos registrados, para organizar de manera eficiente el recorrido de los vehículos. Criterios de Aceptación
+
+Escenario 1: Generación de una ruta
+
+**Dado** que existen pedidos registrados con ubicaciones válidas,
+
+**Cuando** el responsable solicita generar una ruta,
+
+**Entonces** el sistema debe procesar la información y generar una ruta para los pedidos seleccionados.
+
+Escenario 2: Sin pedidos disponibles
+
+**Dado** que no existen pedidos disponibles para planificar,
+
+**Cuando** el responsable solicita generar una ruta,
+
+**Entonces** el sistema debe informar que no existen pedidos disponibles para realizar la planificación.
+
+### US-006 – Visualización de rutas en mapa interactivo
+
+ID: US-006
+
+Jira: HU-09
+
+Título: Visualización de rutas en mapa interactivo
+
+Épica Relacionada: EP-05 Visualización y seguimiento de rutas Redacción
+
+Como usuario responsable de la operación logística,
+
+quiero visualizar las rutas generadas en un mapa interactivo,
+
+para consultar gráficamente los recorridos planificados.
+
+Criterios de Aceptación
+
+Escenario 1: Visualización de una ruta
+
+**Dado** que existe una ruta generada,
+
+**Cuando** el usuario accede a la visualización de rutas,
+
+**Entonces** el sistema debe mostrar el recorrido correspondiente en el mapa. Escenario 2: Selección de una ruta
+
+**Dado** que existen varias rutas disponibles,
+
+**Cuando** el usuario selecciona una ruta,
+
+**Entonces** el sistema debe mostrar en el mapa el recorrido correspondiente a la ruta seleccionada.
+
+## 5. Historias Técnicas / Enablers
+
+Los requerimientos no funcionales se transforman en historias técnicas que permiten garantizar las condiciones técnicas necesarias para el funcionamiento del sistema.
+
+### EN-001 – Seguridad de autenticación y sesiones
+
+Tipo: Enabler
+
+Relacionado con: EP-01 Gestión de acceso y usuarios
+
+Objetivo
+
+Implementar mecanismos técnicos para proteger la autenticación, las sesiones y el acceso a los recursos del sistema.
+
+Criterios de Aceptación
+
+Escenario 1: Protección de credenciales
+
+**Dado** que un usuario utiliza el sistema de autenticación,
+
+**Cuando** se procesan sus credenciales,
+
+**Entonces** estas deben gestionarse mediante mecanismos seguros y no almacenarse de forma expuesta.
+
+Escenario 2: Expiración de sesión
+
+**Dado** que un usuario mantiene una sesión activa,
+
+**Cuando** se cumple el tiempo establecido para la expiración,
+
+**Entonces** el sistema debe solicitar nuevamente la autenticación. EN-002 – Calidad y pruebas automatizadas
+
+Tipo: Enabler
+
+Relacionado con: Todas las épicas
+
+Objetivo
+
+Establecer una base de pruebas automatizadas que permita verificar la calidad del software desarrollado.
+
+Criterios de Aceptación
+
+Escenario 1: Ejecución de pruebas
+
+**Dado** que existe código implementado,
+
+**Cuando** se ejecuta la suite de pruebas automatizadas,
+
+**Entonces** las pruebas deben ejecutarse correctamente y reportar sus resultados. Escenario 2: Cobertura mínima
+
+**Dado** que se ejecutan las pruebas unitarias del proyecto,
+
+**Cuando** se genera el reporte de cobertura,
+
+**Entonces** la cobertura debe ser igual o superior al 80 %.
+
+### EN-003 – Análisis estático y seguridad del código
+
+Tipo: Enabler
+
+Relacionado con: Todas las épicas
+
+Objetivo
+
+Incorporar análisis estático del código para identificar problemas de calidad y seguridad antes de la integración del trabajo.
+
+Criterios de Aceptación
+
+Escenario 1: Análisis del código
+
+**Dado** que existe una nueva modificación del código,
+
+**Cuando** se ejecuta el análisis estático,
+
+**Entonces** el código debe ser evaluado respecto a las reglas de calidad y seguridad definidas.
+
+Escenario 2: Vulnerabilidades críticas
+
+**Dado** que se ejecuta el análisis estático,
+
+**Cuando** se genera el resultado del análisis,
+
+**Entonces** no deben existir vulnerabilidades críticas pendientes para considerar el trabajo terminado.
+
+### EN-004 – Integración y despliegue en ambiente de pruebas
+
+Tipo: Enabler
+
+Relacionado con: Todas las épicas
+
+Objetivo
+
+Establecer un proceso automatizado que permita integrar y desplegar el sistema en un ambiente de pruebas o staging.
+
+Criterios de Aceptación
+
+Escenario 1: Integración del código
+
+**Dado** que existe una modificación aprobada,
+
+**Cuando** se integra el código al repositorio,
+
+**Entonces** debe ejecutarse el proceso automatizado de validación correspondiente. Escenario 2: Despliegue
+
+**Dado** que las validaciones automatizadas finalizan correctamente, **Cuando** se ejecuta el proceso de despliegue,
+
+**Entonces** la aplicación debe quedar disponible en el ambiente de pruebas.
+
+### EN-005 – Documentación técnica y API
+
+Tipo: Enabler
+
+Relacionado con: Todas las épicas
+
+Objetivo
+
+Mantener actualizada la documentación técnica y la documentación de las interfaces de programación utilizadas por el sistema.
+
+Criterios de Aceptación
+
+Escenario 1: Actualización de documentación
+
+**Dado** que se implementa o modifica una funcionalidad,
+
+**Cuando** se completa el desarrollo correspondiente,
+
+**Entonces** la documentación técnica relacionada debe actualizarse. Escenario 2: Documentación de API
+
+**Dado** que existe una API utilizada por el sistema,
+
+**Cuando** se incorpora o modifica un endpoint,
+
+**Entonces** su documentación debe mantenerse actualizada mediante una especificación como OpenAPI/Swagger.
+
+## 6. Mapeo de Requisitos hacia el Trabajo Ágil
+
+La transformación de los requisitos se resume de la siguiente manera:
+
+## 7. Definition of Done (DoD) Global
+
+Una Historia de Usuario se considera Done cuando cumple todos los criterios técnicos y funcionales establecidos por el equipo.
+
+La Definition of Done global del proyecto EcoLima comprende:
+
+- La funcionalidad cumple con todos sus criterios de aceptación. - Se han realizado las pruebas correspondientes.
+
+- La cobertura de pruebas unitarias es ≥ 80 %.
+
+- El análisis estático de código no presenta vulnerabilidades críticas. - Se realizó Peer Review mediante Pull Request.
+
+- El Pull Request fue aprobado por al menos un par técnico. - El código se encuentra integrado correctamente en el repositorio. - El despliegue automatizado puede ejecutarse en un ambiente de Staging / Pruebas.
+
+- La funcionalidad ha sido validada en el ambiente correspondiente. - La documentación técnica y de código se encuentra actualizada. - La documentación de API mediante OpenAPI/Swagger se encuentra actualizada cuando corresponde.
+
+- No existen errores críticos pendientes relacionados con la funcionalidad. 8. Relación con Jira Software
+
+La transformación realizada en este documento se implementa posteriormente en Jira Software mediante la siguiente jerarquía:
+
+Épica → Historia de Usuario / Enabler → Subtarea
+
+Las cinco épicas definidas en este documento corresponden a las épicas configuradas en el proyecto Eco-Lima de Jira.
+
+Las historias de usuario priorizadas para el Sprint 1 son:
+
+Total del Sprint 1: 36 Story Points.
+
+## 9. Conclusión
+
+La transformación ágil permite convertir la línea base de requisitos de EcoLima en elementos de trabajo gestionables mediante Scrum.
+
+Los requerimientos funcionales se organizaron en cinco épicas y se descompusieron en historias de usuario. Los requerimientos no funcionales se transformaron en Enablers técnicos relacionados con seguridad, calidad, pruebas, despliegue y documentación.
+
+Esta estructura constituye la base para la planificación y gestión del proyecto en Jira Software, donde posteriormente se organizan el backlog, el Sprint 1, el tablero Scrum y el release del producto.
