@@ -5,7 +5,11 @@
 
 ## ¿Qué aprendimos?
 
-Durante el Sprint 1, el equipo aprendió a utilizar Jira como herramienta para organizar y realizar el seguimiento de las actividades del proyecto.
+Durante el Sprint 1, correspondiente al desarrollo del primer Producto Mínimo Viable (PMV), el equipo aprendió a utilizar Jira como herramienta para organizar y realizar el seguimiento de las actividades del proyecto. Este Sprint se desarrolló desde el 14 de septiembre hasta el 4 de octubre de 2026.
+
+Asimismo, se comprendió la importancia de distribuir las tareas, definir responsabilidades y mantener una coordinación adecuada entre los integrantes para cumplir con los objetivos establecidos.
+
+Actualmente, el equipo se encuentra desarrollando el Sprint 2, en el cual se busca aplicar lo aprendido durante el primer Sprint y mejorar la organización y seguimiento de las actividades.
 
 ## ¿Qué estamos haciendo bien?
 
