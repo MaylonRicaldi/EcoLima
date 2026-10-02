@@ -1,0 +1,455 @@
+/* ============================================================
+   EcoLogística Lima · Fundamentos visuales (Glassmorphism)
+   Tokens, reset, fondo aurora y estilos base.
+
+   Todas las medidas usan rem para que el diseño escale con la
+   resolución: basta con cambiar el font-size de :root en los
+   media queries de pantallas grandes para "agrandar" la 4K.
+   ============================================================ */
+
+:root {
+  /* Acentos "eco" */
+  --verde: #10b981;
+  --verde-fuerte: #059669;
+  --aqua: #22d3ee;
+  --lila: #a78bfa;
+  --rosa: #fb7185;
+  --ambar: #f59e0b;
+
+  /* Texto */
+  --texto: #0d2b33;
+  --texto-medio: #3f626d;
+  --texto-tenue: #6f8f99;
+
+  /* Vidrio */
+  --vidrio: rgba(255, 255, 255, 0.52);
+  --vidrio-alto: rgba(255, 255, 255, 0.72);
+  --vidrio-bajo: rgba(255, 255, 255, 0.3);
+  --borde: rgba(255, 255, 255, 0.85);
+  --borde-tenue: rgba(255, 255, 255, 0.5);
+  --linea: rgba(13, 71, 84, 0.1);
+
+  /* Sombras */
+  --sombra: 0 1.375rem 3rem -1.5rem rgba(9, 62, 74, 0.5);
+  --sombra-suave: 0 0.625rem 1.625rem -1rem rgba(9, 62, 74, 0.45);
+  --brillo: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+
+  /* Tipografía */
+  --sans:
+    'Segoe UI', system-ui, -apple-system, 'Inter', Roboto, Helvetica, Arial,
+    sans-serif;
+  --mono: 'Cascadia Mono', Consolas, ui-monospace, monospace;
+
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Scrollbars en tono cristal, no del sistema */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(13, 71, 84, 0.26) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 0.6875rem;
+  height: 0.6875rem;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(16, 185, 129, 0.55),
+    rgba(34, 211, 238, 0.5)
+  );
+  background-clip: content-box;
+  border: 0.1875rem solid transparent;
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(16, 185, 129, 0.85),
+    rgba(34, 211, 238, 0.8)
+  );
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Sin soporte de backdrop-filter el cristal se vuelve opaco */
+@supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+  section,
+  .formulario-contenedor,
+  .tabla-container,
+  .tabla-contenedor,
+  section > table,
+  main:has(> form) > form,
+  main a {
+    background: rgba(255, 255, 255, 0.94);
+  }
+}
+
+html {
+  min-height: 100%;
+  background: linear-gradient(160deg, #e6f7f4 0%, #eef2fb 48%, #f6edfb 100%);
+}
+
+body {
+  margin: 0;
+  min-height: 100svh;
+  font-family: var(--sans);
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--texto);
+  background: transparent;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* --- Fondo aurora animado: da profundidad al cristal --- */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -25%;
+  z-index: -2;
+  background:
+    radial-gradient(36% 40% at 20% 24%, rgba(34, 211, 238, 0.5), transparent 70%),
+    radial-gradient(34% 38% at 82% 16%, rgba(167, 139, 250, 0.45), transparent 70%),
+    radial-gradient(42% 42% at 74% 86%, rgba(16, 185, 129, 0.4), transparent 70%),
+    radial-gradient(40% 42% at 18% 88%, rgba(96, 165, 250, 0.36), transparent 70%);
+  animation: aurora 30s ease-in-out infinite alternate;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 80% at 50% 0%, transparent 30%, rgba(255, 255, 255, 0.3) 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.1));
+}
+
+@keyframes aurora {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(2%, -3%, 0) scale(1.06);
+  }
+  100% {
+    transform: translate3d(-3%, 2%, 0) scale(1.02);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before {
+    animation: none;
+  }
+}
+
+/* --- Layout raíz --- */
+#root {
+  min-height: 100svh;
+  width: 100%;
+  max-width: 73.75rem;
+  margin: 0 auto;
+  padding: 1.875rem 1.375rem 4.375rem;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Contenedor de página (todas las vistas) */
+main,
+.pagina,
+.vehiculos-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.625rem;
+  text-align: left;
+  flex: 1;
+}
+
+/* --- Tipografía --- */
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--texto);
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: clamp(1.7rem, 1.1rem + 2.2vw, 2.5rem);
+  line-height: 1.15;
+}
+
+h2 {
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+h2::before {
+  content: '';
+  width: 0.3125rem;
+  height: 1.1em;
+  border-radius: 99px;
+  background: linear-gradient(180deg, var(--verde), var(--aqua));
+  box-shadow: 0 0 0.75rem rgba(16, 185, 129, 0.5);
+}
+
+h3 {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--texto-tenue);
+}
+
+p {
+  margin: 0;
+}
+
+strong {
+  font-weight: 700;
+}
+
+hr {
+  border: 0;
+  height: 1px;
+  margin: 0.125rem 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(13, 71, 84, 0.22),
+    transparent
+  );
+}
+
+code,
+.counter {
+  font-family: var(--mono);
+}
+
+/* --- Tarjetas de cristal --- */
+section {
+  background: var(--vidrio);
+  -webkit-backdrop-filter: blur(1.375rem) saturate(165%);
+  backdrop-filter: blur(1.375rem) saturate(165%);
+  border: 1px solid var(--borde);
+  border-radius: 1.5rem;
+  box-shadow: var(--sombra), var(--brillo);
+  padding: 1.625rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.125rem;
+}
+
+/* Cabecera de página (Pedidos) */
+.pagina-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.875rem;
+}
+
+/* --- Formularios --- */
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+form > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4375rem;
+  margin-bottom: 0.875rem;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4375rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--texto-medio);
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--texto);
+  padding: 0.6875rem 0.875rem;
+  border-radius: 0.8125rem;
+  border: 1px solid var(--borde);
+  background: var(--vidrio-alto);
+  box-shadow: inset 0 1px 3px rgba(9, 62, 74, 0.07);
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+input::placeholder {
+  color: var(--texto-tenue);
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: rgba(16, 185, 129, 0.45);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(16, 185, 129, 0.7);
+  box-shadow:
+    0 0 0 0.25rem rgba(16, 185, 129, 0.18),
+    0 0.5rem 1.125rem -0.625rem rgba(16, 185, 129, 0.5);
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  padding-right: 2.5rem;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232f5b66' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.8125rem center;
+  background-size: 1.0625rem;
+}
+
+input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* --- Botones --- */
+button {
+  font: inherit;
+  font-weight: 650;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.6875rem 1.25rem;
+  border-radius: 0.8125rem;
+  border: 1px solid var(--borde);
+  color: var(--texto);
+  background: var(--vidrio-alto);
+  box-shadow: var(--sombra-suave), var(--brillo);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+
+button:hover:not(:disabled) {
+  transform: translateY(-0.125rem);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1rem 1.875rem -1rem rgba(9, 62, 74, 0.55), var(--brillo);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 2px solid var(--verde);
+  outline-offset: 3px;
+}
+
+::selection {
+  background: rgba(16, 185, 129, 0.25);
+}
+
+/* ============================================================
+   Escalado para pantallas grandes / 4K.
+   Todo el diseño está en rem, así que basta subir la raíz.
+   ============================================================ */
+
+@media (min-width: 1440px) {
+  #root {
+    max-width: 85rem;
+  }
+}
+
+@media (min-width: 1920px) {
+  :root {
+    font-size: 18px;
+  }
+
+  #root {
+    max-width: 96rem;
+    padding: 2.5rem 2rem 5.5rem;
+  }
+}
+
+@media (min-width: 2560px) {
+  :root {
+    font-size: 21px;
+  }
+
+  #root {
+    max-width: 116rem;
+  }
+}
+
+@media (min-width: 3200px) {
+  :root {
+    font-size: 26px;
+  }
+
+  #root {
+    max-width: 140rem;
+  }
+}
+
+/* --- Móvil --- */
+@media (max-width: 45rem) {
+  #root {
+    padding: 1.25rem 0.875rem 3rem;
+  }
+
+  main,
+  .pagina,
+  .vehiculos-page {
+    gap: 1.25rem;
+  }
+}

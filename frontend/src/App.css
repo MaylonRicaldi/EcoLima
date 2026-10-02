@@ -1,0 +1,790 @@
+/* ============================================================
+   EcoLogística Lima · Componentes Glassmorphism
+   Login, dashboard, tablas, mensajes y rejillas de formulario.
+   Medidas en rem: escalan con el font-size raíz (ver index.css).
+   ============================================================ */
+
+/* ---------------- BARRA SUPERIOR ---------------- */
+
+.barra-superior {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.375rem;
+  padding: 0.5625rem 0.75rem;
+  border-radius: 1rem;
+  border: 1px solid var(--borde);
+  background: var(--vidrio-alto);
+  -webkit-backdrop-filter: blur(1.25rem) saturate(170%);
+  backdrop-filter: blur(1.25rem) saturate(170%);
+  box-shadow: var(--sombra-suave), var(--brillo);
+}
+
+.barra-superior-acciones {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.barra-superior button {
+  padding: 0.5rem 0.9375rem;
+  font-size: 0.82rem;
+  border-radius: 0.6875rem;
+}
+
+.barra-superior button:hover {
+  transform: none;
+}
+
+/* Cerrar sesión siempre arriba a la izquierda */
+.boton-cerrar-sesion {
+  color: #be123c;
+  background: rgba(255, 255, 255, 0.55);
+  border-color: rgba(251, 113, 133, 0.45);
+}
+
+.boton-cerrar-sesion:hover {
+  background: rgba(255, 228, 230, 0.9);
+  border-color: rgba(251, 113, 133, 0.8);
+}
+
+/* Retroceso */
+.boton-retroceso {
+  color: var(--texto-medio);
+}
+
+.boton-retroceso span {
+  margin-right: 0.375rem;
+  font-size: 1.05em;
+  line-height: 1;
+}
+
+.barra-superior-marca {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--texto-tenue);
+  white-space: nowrap;
+}
+
+/* ---------------- LOGIN ---------------- */
+
+main:has(> form) {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 0;
+}
+
+main:has(> form) h1 {
+  font-size: clamp(2.1rem, 1.4rem + 3.4vw, 3.3rem);
+  background: linear-gradient(
+    120deg,
+    var(--verde-fuerte),
+    var(--aqua) 55%,
+    var(--lila)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: -0.035em;
+  margin-bottom: 0.125rem;
+}
+
+main:has(> form) h2 {
+  justify-content: center;
+  color: var(--texto-medio);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 1rem;
+}
+
+main:has(> form) h2::before {
+  display: none;
+}
+
+main:has(> form) > form {
+  width: min(25.625rem, 100%);
+  margin-top: 1.75rem;
+  padding: 2rem 1.75rem;
+  text-align: left;
+  background: var(--vidrio-alto);
+  -webkit-backdrop-filter: blur(1.625rem) saturate(175%);
+  backdrop-filter: blur(1.625rem) saturate(175%);
+  border: 1px solid var(--borde);
+  border-radius: 1.625rem;
+  box-shadow: var(--sombra), var(--brillo);
+  gap: 0;
+}
+
+main:has(> form) > form > div {
+  margin-bottom: 1rem;
+}
+
+main:has(> form) > form > button {
+  width: 100%;
+  margin-top: 0.375rem;
+  border: none;
+  color: #fff;
+  font-size: 0.98rem;
+  padding: 0.8125rem 1.25rem;
+  background: linear-gradient(
+    120deg,
+    var(--verde-fuerte),
+    var(--verde) 45%,
+    var(--aqua)
+  );
+  box-shadow: 0 0.875rem 1.875rem -0.875rem rgba(5, 150, 105, 0.7);
+}
+
+main:has(> form) > form > button:hover:not(:disabled) {
+  background: linear-gradient(120deg, var(--verde), var(--aqua) 60%, var(--lila));
+  box-shadow: 0 1.25rem 2.375rem -0.875rem rgba(5, 150, 105, 0.75);
+}
+
+/* Ilustración eco del login: SVG vectorial, nítida en 4K */
+.escena-eco {
+  width: min(30rem, 92%);
+  height: auto;
+  margin-bottom: 1.25rem;
+  filter: drop-shadow(0 1.5rem 2rem rgba(9, 62, 74, 0.28));
+  animation: flotar 9s ease-in-out infinite;
+}
+
+@keyframes flotar {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .escena-eco {
+    animation: none;
+  }
+}
+
+.marca-logo {
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 1rem;
+  display: block;
+  margin: 0 auto 1rem;
+  background: linear-gradient(135deg, var(--verde-fuerte), var(--aqua));
+  box-shadow: 0 0.75rem 1.5rem -0.625rem rgba(5, 150, 105, 0.6);
+}
+
+/* ---------------- DASHBOARD ---------------- */
+
+/* Fila de dato: <p><strong>Campo:</strong> valor</p>
+   El flex va en el <p> porque el valor es texto hermano del <strong>,
+   no un hijo suyo. :has() evita aplicar esto a los <p> que solo
+   envuelven un <Link> de módulo. */
+main > p:has(strong) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  padding: 0.8125rem 1.25rem;
+  border-radius: 0.9375rem;
+  border: 1px solid var(--borde-tenue);
+  background: var(--vidrio-bajo);
+  box-shadow: var(--brillo);
+  font-size: 0.95rem;
+}
+
+main > p:has(strong) strong {
+  flex: 0 0 8.25rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--texto-medio);
+}
+
+/* Enlaces de módulo del dashboard */
+main a {
+  display: block;
+  padding: 1rem 1.25rem;
+  border-radius: 1.125rem;
+  border: 1px solid var(--borde);
+  background: var(--vidrio-alto);
+  -webkit-backdrop-filter: blur(1.125rem) saturate(160%);
+  backdrop-filter: blur(1.125rem) saturate(160%);
+  box-shadow: var(--sombra-suave), var(--brillo);
+  color: var(--texto);
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+main a::before {
+  content: '◆';
+  margin-right: 0.625rem;
+  color: var(--verde);
+  font-size: 0.75em;
+  vertical-align: 2px;
+}
+
+main a:hover {
+  transform: translateY(-0.1875rem);
+  border-color: rgba(16, 185, 129, 0.55);
+  box-shadow: 0 1.25rem 2.25rem -1.125rem rgba(9, 62, 74, 0.6), var(--brillo);
+}
+
+/* ---------------- REJILLAS DE FORMULARIO ---------------- */
+
+.form-grid,
+.formulario-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13.125rem, 1fr));
+  gap: 0.25rem 1.125rem;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4375rem;
+}
+
+/* En Pedidos el formulario no usa <section>: se da la misma tarjeta */
+.formulario-contenedor {
+  background: var(--vidrio);
+  -webkit-backdrop-filter: blur(1.375rem) saturate(165%);
+  backdrop-filter: blur(1.375rem) saturate(165%);
+  border: 1px solid var(--borde);
+  border-radius: 1.5rem;
+  box-shadow: var(--sombra), var(--brillo);
+  padding: 1.625rem 1.5rem;
+}
+
+.campo-completo {
+  grid-column: 1 / -1;
+}
+
+.form-actions,
+.formulario-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.375rem;
+}
+
+.form-actions button[type='submit'],
+.formulario-acciones .boton-principal {
+  border: none;
+  color: #fff;
+  background: linear-gradient(
+    120deg,
+    var(--verde-fuerte),
+    var(--verde) 50%,
+    var(--aqua)
+  );
+  box-shadow: 0 0.875rem 1.75rem -0.875rem rgba(5, 150, 105, 0.7);
+}
+
+.form-actions button[type='submit']:hover,
+.formulario-acciones .boton-principal:hover {
+  background: linear-gradient(120deg, var(--verde), var(--aqua) 60%, var(--lila));
+}
+
+.boton-principal {
+  border: none;
+  color: #fff;
+  background: linear-gradient(
+    120deg,
+    var(--verde-fuerte),
+    var(--verde) 50%,
+    var(--aqua)
+  );
+  box-shadow: 0 0.875rem 1.75rem -0.875rem rgba(5, 150, 105, 0.7);
+}
+
+.boton-principal:hover:not(:disabled) {
+  background: linear-gradient(120deg, var(--verde), var(--aqua) 60%, var(--lila));
+}
+
+.boton-secundario {
+  background: var(--vidrio-alto);
+  color: var(--texto-medio);
+  font-size: 0.84rem;
+  padding: 0.5rem 0.875rem;
+}
+
+/* ---------------- TABLAS ---------------- */
+
+.tabla-container,
+.tabla-contenedor {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 1.125rem;
+  border: 1px solid var(--borde-tenue);
+  background: var(--vidrio-bajo);
+  box-shadow: inset 0 1px 4px rgba(9, 62, 74, 0.06);
+}
+
+/* Usuarios y Conductores montan el <table> directo dentro del <section>,
+   sin contenedor propio. display:block es necesario porque un elemento
+   con display:table no puede ser caja de scroll (overflow se ignora). */
+section > table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 1rem;
+  border: 1px solid var(--borde-tenue);
+  background: var(--vidrio-bajo);
+  box-shadow: inset 0 1px 4px rgba(9, 62, 74, 0.06);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  padding: 0.875rem 1rem;
+  text-align: left;
+  white-space: nowrap;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--texto-medio);
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(0.625rem);
+  backdrop-filter: blur(0.625rem);
+  border-bottom: 1px solid rgba(13, 71, 84, 0.14);
+}
+
+tbody td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.6);
+  color: var(--texto-medio);
+  white-space: nowrap;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+tbody tr {
+  transition: background 0.16s ease;
+}
+
+tbody tr:hover {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+tbody td:first-child {
+  color: var(--texto-tenue);
+  font-weight: 600;
+}
+
+/* Acciones de fila: solo se colorean si la celda tiene 2+ botones
+   (Pedidos usa un único .boton-secundario y ya tiene su propio estilo) */
+td button {
+  padding: 0.375rem 0.8125rem;
+  font-size: 0.78rem;
+  border-radius: 0.625rem;
+  margin-right: 0.375rem;
+}
+
+td button:first-child:not(:only-child) {
+  border-color: rgba(16, 185, 129, 0.4);
+  color: var(--verde-fuerte);
+  background: rgba(236, 253, 245, 0.75);
+}
+
+td button:first-child:not(:only-child):hover {
+  background: rgba(209, 250, 229, 0.95);
+}
+
+td button:last-child:not(:only-child) {
+  border-color: rgba(245, 158, 11, 0.42);
+  color: #b45309;
+  background: rgba(255, 251, 235, 0.75);
+}
+
+td button:last-child:not(:only-child):hover {
+  background: rgba(254, 243, 199, 0.95);
+}
+
+/* Badges de estado. Vocabulario tomado del CHECK del DDL:
+   usuarios    ACTIVO | BLOQUEADO | INACTIVO
+   vehiculos   ACTIVO | MANTENIMIENTO | BAJA
+   conductores DISPONIBLE | EN_RUTA | DESCANSO | INACTIVO
+   licencias   VIGENTE | VENCIDA | SUSPENDIDA */
+.estado {
+  display: inline-block;
+  padding: 0.25rem 0.6875rem;
+  border-radius: 99px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+/* Operativos / en curso */
+.estado-activo,
+.estado-vigente,
+.estado-disponible {
+  color: #065f46;
+  background: rgba(209, 250, 229, 0.85);
+  border-color: rgba(16, 185, 129, 0.42);
+}
+
+/* En ruta */
+.estado-en_ruta {
+  color: #075985;
+  background: rgba(224, 242, 254, 0.85);
+  border-color: rgba(14, 165, 233, 0.45);
+}
+
+/* En descanso */
+.estado-descanso {
+  color: #4c1d95;
+  background: rgba(237, 233, 254, 0.85);
+  border-color: rgba(139, 92, 246, 0.42);
+}
+
+/* Requieren atención */
+.estado-mantenimiento,
+.estado-suspendida {
+  color: #92400e;
+  background: rgba(254, 243, 199, 0.85);
+  border-color: rgba(245, 158, 11, 0.45);
+}
+
+/* Fuera de servicio */
+.estado-baja,
+.estado-vencida,
+.estado-bloqueado {
+  color: #9f1239;
+  background: rgba(255, 228, 230, 0.85);
+  border-color: rgba(244, 63, 94, 0.42);
+}
+
+/* Inactivos */
+.estado-inactivo {
+  color: var(--texto-medio);
+  background: rgba(226, 232, 240, 0.8);
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+/* ---------------- MENSAJES ---------------- */
+
+.mensaje,
+.mensaje-exito,
+.mensaje-error,
+main > h1 + p {
+  padding: 0.8125rem 1.125rem;
+  border-radius: 0.9375rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: 1px solid var(--borde-tenue);
+  background: var(--vidrio-alto);
+  box-shadow: var(--brillo);
+}
+
+.mensaje.exito,
+.mensaje-exito {
+  color: #065f46;
+  background: rgba(209, 250, 229, 0.7);
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.mensaje.error,
+.mensaje-error {
+  color: #9f1239;
+  background: rgba(255, 228, 230, 0.72);
+  border-color: rgba(244, 63, 94, 0.4);
+}
+
+/* Estados vacíos y de carga dentro de una tarjeta:
+   "No hay usuarios registrados." / "Cargando conductores..." */
+section > p {
+  padding: 1.375rem 1.125rem;
+  border-radius: 0.875rem;
+  border: 1px dashed var(--borde-tenue);
+  background: var(--vidrio-bajo);
+  text-align: center;
+  color: var(--texto-medio);
+  font-size: 0.9rem;
+}
+
+/* Mensajes planos de Conductores / Usuarios (sin clase).
+   OJO: esas páginas emiten el mensaje de éxito y el de error en orden
+   distinto, así que el color no se puede deducir de la posición. */
+main > h1 + p,
+main > h1 + p + p {
+  color: var(--texto-medio);
+  background: var(--vidrio-alto);
+  border-color: var(--borde-tenue);
+  margin-bottom: 0.875rem;
+}
+
+/* ---------------- MAPA (HU-07) ---------------- */
+
+.mapa-ruta {
+  width: 100%;
+  border-radius: 1rem;
+  border: 1px solid var(--borde-tenue);
+  overflow: hidden;
+  z-index: 0;
+}
+
+.leaflet-container {
+  background: #dceef0;
+  font-family: var(--sans);
+}
+
+.pin-entrega span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.625rem;
+  height: 1.625rem;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.pin-entrega span::first-line {
+  transform: rotate(45deg);
+}
+
+.leyenda-mapa {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--texto-medio);
+}
+
+.leyenda-mapa li {
+  display: flex;
+  align-items: center;
+  gap: 0.4375rem;
+}
+
+.leyenda-mapa span {
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+/* ---------------- INDICADORES (HU-09) ---------------- */
+
+.grid-indicadores {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.875rem;
+}
+
+.tarjeta-indicador {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem 1.125rem;
+  border-radius: 1rem;
+  border: 1px solid var(--borde-tenue);
+  background: var(--vidrio-bajo);
+  box-shadow: var(--brillo);
+}
+
+.tarjeta-titulo {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--texto-tenue);
+}
+
+.tarjeta-valor {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--texto);
+  font-variant-numeric: tabular-nums;
+}
+
+.tarjeta-valor small {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--texto-medio);
+  margin-left: 0.125rem;
+}
+
+.tarjeta-detalle {
+  font-size: 0.76rem;
+  color: var(--texto-tenue);
+}
+
+.tarjeta-indicador.bien {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(209, 250, 229, 0.55);
+}
+
+.tarjeta-indicador.alerta {
+  border-color: rgba(244, 63, 94, 0.4);
+  background: rgba(255, 228, 230, 0.55);
+}
+
+.tarjeta-indicador.eco {
+  border-color: rgba(34, 211, 238, 0.4);
+  background: rgba(224, 242, 254, 0.55);
+}
+
+.mensaje.eco {
+  color: #065f46;
+  background: rgba(209, 250, 229, 0.72);
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+/* ---------------- RUTAS (HU-06) ---------------- */
+
+.ruta-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem 1.5rem;
+  font-size: 0.85rem;
+  color: var(--texto-medio);
+}
+
+.ruta-meta strong {
+  color: var(--texto);
+}
+
+.fila-activa {
+  background: rgba(16, 185, 129, 0.1) !important;
+  box-shadow: inset 3px 0 0 var(--verde);
+}
+
+/* Estados de ruta (CHECK del DDL) */
+.estado-planificada {
+  color: #075985;
+  background: rgba(224, 242, 254, 0.85);
+  border-color: rgba(14, 165, 233, 0.45);
+}
+
+.estado-en_curso {
+  color: #92400e;
+  background: rgba(254, 243, 199, 0.85);
+  border-color: rgba(245, 158, 11, 0.45);
+}
+
+.estado-completada {
+  color: #065f46;
+  background: rgba(209, 250, 229, 0.85);
+  border-color: rgba(16, 185, 129, 0.42);
+}
+
+.estado-cancelada,
+.estado-reoptimizada {
+  color: var(--texto-medio);
+  background: rgba(226, 232, 240, 0.8);
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+/* Estados de entrega (CHECK de ruta_pedidos) */
+.estado-entregado {
+  color: #065f46;
+  background: rgba(209, 250, 229, 0.85);
+  border-color: rgba(16, 185, 129, 0.42);
+}
+
+.estado-fallido {
+  color: #9f1239;
+  background: rgba(255, 228, 230, 0.85);
+  border-color: rgba(244, 63, 94, 0.42);
+}
+
+.estado-reprogramado {
+  color: #4c1d95;
+  background: rgba(237, 233, 254, 0.85);
+  border-color: rgba(139, 92, 246, 0.42);
+}
+
+.flota-combustible ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  font-size: 0.85rem;
+  color: var(--texto-medio);
+}
+
+nav.modulos p {
+  margin: 0;
+}
+
+/* ---------------- RESPONSIVE ---------------- */
+
+@media (max-width: 45rem) {
+  section {
+    padding: 1.25rem 1rem;
+    border-radius: 1.25rem;
+  }
+
+  .formulario-contenedor {
+    padding: 1.25rem 1rem;
+    border-radius: 1.25rem;
+  }
+
+  main > p:has(strong) {
+    gap: 0.125rem;
+  }
+
+  main > p:has(strong) strong {
+    flex-basis: 100%;
+  }
+
+  .pagina-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .barra-superior {
+    padding: 0.4375rem 0.5rem;
+    border-radius: 0.875rem;
+  }
+
+  .barra-superior button {
+    padding: 0.4375rem 0.6875rem;
+    font-size: 0.76rem;
+  }
+
+  .barra-superior-marca {
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+  }
+}

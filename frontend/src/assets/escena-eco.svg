@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500" role="img" aria-label="Ilustración de una ruta de deliveries en Lima con vehículo eléctrico, cerros verdes y edificios">
+  <defs>
+    <linearGradient id="cielo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d8f3ef"/>
+      <stop offset="55%" stop-color="#eef6fb"/>
+      <stop offset="100%" stop-color="#f7f0fb"/>
+    </linearGradient>
+    <linearGradient id="cerroLejano" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#a7ddd0"/>
+      <stop offset="100%" stop-color="#8ecfc0"/>
+    </linearGradient>
+    <linearGradient id="cerroMedio" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6fc7ae"/>
+      <stop offset="100%" stop-color="#4fb394"/>
+    </linearGradient>
+    <linearGradient id="cerroCercano" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2fa383"/>
+      <stop offset="100%" stop-color="#1d8a6d"/>
+    </linearGradient>
+    <linearGradient id="camion" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#22d3ee"/>
+    </linearGradient>
+    <linearGradient id="suelo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1d8a6d"/>
+      <stop offset="100%" stop-color="#0f6b53"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="800" height="500" fill="url(#cielo)"/>
+
+  <circle cx="648" cy="96" r="46" fill="#ffffff" opacity="0.55"/>
+  <circle cx="620" cy="118" r="30" fill="#ffffff" opacity="0.45"/>
+  <circle cx="676" cy="124" r="26" fill="#ffffff" opacity="0.45"/>
+
+  <!-- cerros lejanos -->
+  <path d="M0,352 C110,296 196,340 288,308 C382,276 470,332 566,300 C654,270 742,308 800,292 L800,500 L0,500 Z" fill="url(#cerroLejano)"/>
+
+  <!-- skyline -->
+  <g fill="#5aa89c" opacity="0.85">
+    <rect x="44" y="286" width="30" height="76" rx="4"/>
+    <rect x="82" y="252" width="24" height="110" rx="4"/>
+    <rect x="114" y="304" width="34" height="58" rx="4"/>
+    <rect x="156" y="268" width="22" height="94" rx="4"/>
+    <rect x="186" y="296" width="30" height="66" rx="4"/>
+    <rect x="588" y="278" width="28" height="84" rx="4"/>
+    <rect x="624" y="244" width="34" height="118" rx="4"/>
+    <rect x="666" y="296" width="24" height="66" rx="4"/>
+    <rect x="698" y="262" width="30" height="100" rx="4"/>
+    <rect x="736" y="306" width="22" height="56" rx="4"/>
+  </g>
+  <g fill="#ffffff" opacity="0.5">
+    <rect x="92" y="266" width="5" height="7" rx="2"/>
+    <rect x="92" y="284" width="5" height="7" rx="2"/>
+    <rect x="634" y="258" width="5" height="7" rx="2"/>
+    <rect x="634" y="276" width="5" height="7" rx="2"/>
+    <rect x="709" y="278" width="5" height="7" rx="2"/>
+  </g>
+
+  <!-- cerros medios -->
+  <path d="M0,398 C96,352 168,404 262,372 C352,342 438,398 528,368 C618,338 712,388 800,362 L800,500 L0,500 Z" fill="url(#cerroMedio)"/>
+
+  <!-- ruta -->
+  <path d="M300,500 C348,452 372,412 392,372 C404,348 410,330 414,314 L426,314 C424,332 420,352 412,378 C398,420 376,462 336,500 Z" fill="#eaf7f4" opacity="0.92"/>
+  <g fill="#ffffff" opacity="0.95">
+    <rect x="356" y="404" width="7" height="20" rx="3.5" transform="rotate(58 359 414)"/>
+    <rect x="378" y="368" width="6" height="17" rx="3" transform="rotate(74 381 376)"/>
+    <rect x="396" y="336" width="5" height="14" rx="2.5" transform="rotate(84 398 343)"/>
+  </g>
+
+  <!-- pines -->
+  <g>
+    <g transform="translate(300,262)">
+      <path d="M0,0 C-13,0 -22,-11 -22,-24 C-22,-38 -11,-48 0,-48 C11,-48 22,-38 22,-24 C22,-11 13,0 0,0 Z" fill="#0f6b53"/>
+      <circle cx="0" cy="-24" r="8" fill="#ffffff"/>
+    </g>
+    <g transform="translate(486,232)">
+      <path d="M0,0 C-13,0 -22,-11 -22,-24 C-22,-38 -11,-48 0,-48 C11,-48 22,-38 22,-24 C22,-11 13,0 0,0 Z" fill="#22d3ee"/>
+      <circle cx="0" cy="-24" r="8" fill="#ffffff"/>
+    </g>
+    <g transform="translate(662,282)">
+      <path d="M0,0 C-13,0 -22,-11 -22,-24 C-22,-38 -11,-48 0,-48 C11,-48 22,-38 22,-24 C22,-11 13,0 0,0 Z" fill="#a78bfa"/>
+      <circle cx="0" cy="-24" r="8" fill="#ffffff"/>
+    </g>
+  </g>
+
+  <!-- arboles -->
+  <g>
+    <g transform="translate(96,398)">
+      <rect x="-5" y="10" width="10" height="26" rx="4" fill="#7a5230"/>
+      <circle cx="0" cy="-6" r="26" fill="#1d8a6d"/>
+      <circle cx="-16" cy="8" r="17" fill="#2fa383"/>
+      <circle cx="16" cy="8" r="17" fill="#2fa383"/>
+    </g>
+    <g transform="translate(170,424) scale(0.78)">
+      <rect x="-5" y="10" width="10" height="26" rx="4" fill="#7a5230"/>
+      <circle cx="0" cy="-6" r="26" fill="#1d8a6d"/>
+      <circle cx="-16" cy="8" r="17" fill="#2fa383"/>
+      <circle cx="16" cy="8" r="17" fill="#2fa383"/>
+    </g>
+    <g transform="translate(716,404) scale(0.9)">
+      <rect x="-5" y="10" width="10" height="26" rx="4" fill="#7a5230"/>
+      <circle cx="0" cy="-6" r="26" fill="#1d8a6d"/>
+      <circle cx="-16" cy="8" r="17" fill="#2fa383"/>
+      <circle cx="16" cy="8" r="17" fill="#2fa383"/>
+    </g>
+  </g>
+
+  <!-- camion -->
+  <g transform="translate(236,406)">
+    <rect x="0" y="-44" width="76" height="48" rx="9" fill="url(#camion)"/>
+    <path d="M76,-30 L102,-30 L118,-14 L118,-4 L76,-4 Z" fill="#0ea5a0"/>
+    <rect x="82" y="-26" width="24" height="14" rx="5" fill="#d9f2f4" opacity="0.9"/>
+    <circle cx="24" cy="10" r="14" fill="#0b3b31"/>
+    <circle cx="24" cy="10" r="6" fill="#cfe9e4"/>
+    <circle cx="96" cy="10" r="14" fill="#0b3b31"/>
+    <circle cx="96" cy="10" r="6" fill="#cfe9e4"/>
+    <path d="M8,-38 h44 a5,5 0 0 1 5,5 v6 a5,5 0 0 1 -5,5 h-44 a5,5 0 0 1 -5,-5 v-6 a5,5 0 0 1 5,-5 Z" fill="#ffffff" opacity="0.9"/>
+    <text x="32" y="-20" font-family="system-ui, sans-serif" font-size="17" font-weight="700" fill="#0f6b53" text-anchor="middle">CO₂</text>
+  </g>
+
+  <!-- suelo -->
+  <path d="M0,452 C120,432 210,466 320,452 C430,438 520,468 630,452 C706,442 760,452 800,448 L800,500 L0,500 Z" fill="url(#suelo)"/>
+</svg>

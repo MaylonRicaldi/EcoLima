@@ -1,0 +1,85 @@
+# ============================================================
+# EcoLogística Lima - .gitignore
+# ============================================================
+
+# ---- Python / Backend ----
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# ---- Secretos: NUNCA subir ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ---- Node / Frontend ----
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm
+.cache/
+
+# ---- Build / dist ----
+dist/
+dist-ssr/
+build/
+.vite/
+
+# ---- Tests y cobertura ----
+coverage/
+playwright-report/
+test-results/
+
+# ---- Logs ----
+logs/
+*.log
+
+# ---- Sistema operativo ----
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- Editores ----
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.sw?
+*.swo
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# ---- Datos locales y archivos generados ----
+*.sqlite
+*.sqlite3
+*.db
+*.csv
+*.xlsx
+*.pdf
+
+# ---- Certificados y claves privadas ----
+*.crt
+*.key
+*.p12
+id_rsa*
+
+# ---- Sistema ----
+Thumbs.db
+desktop.ini

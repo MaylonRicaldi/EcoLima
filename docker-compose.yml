@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: ecolima-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ecolima
+      POSTGRES_USER: ecolima_user
+      POSTGRES_PASSWORD: ecolima_dev_2026
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - ecolima_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  ecolima_postgres_data:
