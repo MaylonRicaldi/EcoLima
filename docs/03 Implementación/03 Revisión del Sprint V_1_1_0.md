@@ -2,7 +2,7 @@
 
 **Nombre del proyecto:** EcoLima – Sistema de gestión y optimización de operaciones logísticas  
 **Responsable del proyecto:** Diego Marlon Quispe Povis  
-**Versión del documento:** 2.0.0  
+**Versión del documento:** 1.1.0  
 **Fecha de actualización:** 09/10/2026  
 **Sprints considerados:** Sprint 1 y Sprint 2  
 **Versión del producto planificada:** EcoLima MVP 1.0.0

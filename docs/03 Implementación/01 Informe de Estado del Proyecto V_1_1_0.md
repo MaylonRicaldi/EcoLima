@@ -4,7 +4,7 @@
 **Responsable del proyecto:** Diego Marlon Quispe Povis  
 **Metodología de trabajo:** Scrum  
 **Herramienta de gestión:** Jira  
-**Versión del documento:** 2.0.0  
+**Versión del documento:** 1.1.0  
 **Fecha del informe:** 09/10/2026  
 **Periodo evaluado:** 14/09/2026 – 04/10/2026  
 **Versión del producto considerada:** EcoLima MVP 1.0.0  
