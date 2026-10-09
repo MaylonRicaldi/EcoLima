@@ -5,6 +5,7 @@ import {
   Route,
   Routes,
   Link,
+  useLocation,
   useNavigate,
 } from 'react-router-dom'
 
@@ -14,21 +15,26 @@ import {
   getUsuario,
 } from './services/auth'
 
-import escenaEco from './assets/escena-eco.svg'
+import BarraLateral from './components/BarraLateral'
 
 import Vehiculos from './pages/Vehiculos'
 import Conductores from './pages/Conductores'
-import Usuarios from './pages/Usuarios'
 import Clientes from './pages/Clientes'
 import Pedidos from './pages/Pedidos'
 import Rutas from './pages/Rutas'
+import Operacion from './pages/Operacion'
+import Conductor from './pages/Conductor'
 import Dashboard from './pages/Dashboard'
 
 import './App.css'
+import './BarraLateral.css'
 
 
-/* Módulos visibles por rol. Solo controla la navegación del frontend:
-   la autorización real siempre se aplica en el backend. */
+/* Módulos visibles por rol. Sólo controla la navegación del
+   frontend: la autorización real siempre se aplica en el backend.
+
+   No está el módulo de usuarios: el sistema tiene una sola cuenta,
+   la del administrador, y todo lo demás lo maneja ella. */
 const MODULOS_POR_ROL = {
   ADMIN: [
     '/dashboard',
@@ -37,7 +43,7 @@ const MODULOS_POR_ROL = {
     '/clientes',
     '/pedidos',
     '/rutas',
-    '/usuarios',
+    '/operacion',
   ],
   OPERADOR: [
     '/dashboard',
@@ -46,8 +52,9 @@ const MODULOS_POR_ROL = {
     '/clientes',
     '/pedidos',
     '/rutas',
+    '/operacion',
   ],
-  CONDUCTOR: ['/vehiculos', '/rutas'],
+  CONDUCTOR: ['/conductor', '/pedidos', '/operacion'],
   AUDITOR: [
     '/dashboard',
     '/vehiculos',
@@ -55,10 +62,24 @@ const MODULOS_POR_ROL = {
     '/clientes',
     '/pedidos',
     '/rutas',
-    '/usuarios',
+    '/operacion',
   ],
   CLIENTE: ['/pedidos'],
 }
+
+
+/* Catálogo de módulos. El dashboard va primero porque es la
+   pantalla principal de todo el sistema. */
+const MODULOS = [
+  ['/dashboard', 'Dashboard', '📊'],
+  ['/vehiculos', 'Vehículos', '🚚'],
+  ['/conductores', 'Conductores', '🧑‍✈️'],
+  ['/clientes', 'Clientes', '🏪'],
+  ['/pedidos', 'Pedidos', '📦'],
+  ['/rutas', 'Rutas', '🗺️'],
+  ['/operacion', 'Operación', '🚦'],
+  ['/conductor', 'Mi ruta', '🧭'],
+]
 
 
 function puedeVerModulo(rol, ruta) {
@@ -70,42 +91,29 @@ function puedeVerModulo(rol, ruta) {
 
 const TIEMPO_INACTIVIDAD = 30 * 60 * 1000
 
-/* Catálogo de módulos del sistema, en el orden en que se muestran */
-const MODULOS = [
-  ['/dashboard', 'Dashboard e indicadores'],
-  ['/vehiculos', 'Gestión de vehículos'],
-  ['/conductores', 'Gestión de conductores'],
-  ['/clientes', 'Gestión de clientes'],
-  ['/pedidos', 'Gestión de pedidos'],
-  ['/rutas', 'Optimización y mapa de rutas'],
-  ['/usuarios', 'Gestión de usuarios'],
-]
 
-function ModulosPermitidos({ rol }) {
-  const visibles = MODULOS.filter(([ruta]) =>
-    puedeVerModulo(rol, ruta)
-  )
+/* ============================================================
+   Estructura de la aplicación: barra lateral de módulos +
+   barra de contenido + la vista de la ruta activa.
+   ============================================================ */
 
-  if (visibles.length === 0) {
-    return null
-  }
-
-  return (
-    <nav className="modulos">
-      {visibles.map(([ruta, texto]) => (
-        <p key={ruta}>
-          <Link to={ruta}>{texto}</Link>
-        </p>
-      ))}
-    </nav>
-  )
-}
-
-
-/* Barra superior: siempre visible en las pantallas privadas.
-   Cierra sesión (arriba a la izquierda) y vuelve a la vista anterior. */
-function BarraSuperior({ onCerrarSesion }) {
+function Layout({ usuario, onCerrarSesion, children }) {
   const navigate = useNavigate()
+  const ubicacion = useLocation()
+
+  const [plegada, setPlegada] = useState(() => {
+    /* En pantallas grandes se arranca plegada para dejarle espacio
+       a las tablas; en móvil arranca cerrada porque es un cajón. */
+    return window.matchMedia('(max-width: 60rem)').matches
+  })
+
+  const visibles = MODULOS.filter(([ruta]) =>
+    puedeVerModulo(usuario.rol, ruta)
+  )
+
+  const actual = MODULOS.find(([ruta]) => ruta === ubicacion.pathname)
+
+  const enMovil = window.matchMedia('(max-width: 60rem)').matches
 
   function manejarRetroceso() {
     const indice = window.history.state?.idx ?? 0
@@ -117,72 +125,118 @@ function BarraSuperior({ onCerrarSesion }) {
     }
   }
 
+
   return (
-    <header className="barra-superior">
+    <div className="app-shell">
 
-      <div className="barra-superior-acciones">
+      {enMovil && !plegada && (
+        <div
+          className="barra-velo"
+          onClick={() => setPlegada(true)}
+        />
+      )}
 
-        <button
-          type="button"
-          className="boton-cerrar-sesion"
-          onClick={onCerrarSesion}
-        >
-          Cerrar sesión
-        </button>
+      <BarraLateral
+        usuario={usuario}
+        modulos={visibles}
+        rutaActiva={ubicacion.pathname}
+        plegada={plegada}
+        onPlegar={() => setPlegada((valor) => !valor)}
+        onCerrarSesion={onCerrarSesion}
+        onNavegar={() => {
+          if (enMovil) {
+            setPlegada(true)
+          }
+        }}
+      />
 
-        <button
-          type="button"
-          className="boton-retroceso"
-          onClick={manejarRetroceso}
-        >
-          <span aria-hidden="true">←</span>
+      <div className="app-principal">
 
-          Volver
-        </button>
+        <header className="barra-contenido">
+          <div className="barra-contenido-ruta">
+            {actual ? (
+              <>
+                {actual[2]} {actual[1]}
+              </>
+            ) : (
+              'EcoLogística Lima'
+            )}
+          </div>
 
+          <div className="barra-contenido-acciones">
+            <button
+              type="button"
+              className="barra-mostrar"
+              onClick={() => setPlegada((valor) => !valor)}
+              aria-label="Mostrar u ocultar módulos"
+              aria-expanded={!plegada}
+            >
+              <span aria-hidden="true">☰</span>
+
+              Módulos
+            </button>
+
+            <button
+              type="button"
+              className="boton-retroceso"
+              onClick={manejarRetroceso}
+            >
+              <span aria-hidden="true">←</span>
+
+              Volver
+            </button>
+          </div>
+        </header>
+
+        {children}
       </div>
-
-      <span className="barra-superior-marca">
-        EcoLogística Lima
-      </span>
-
-    </header>
+    </div>
   )
 }
 
 
-function ConBarra({ onCerrarSesion, children }) {
-  return (
-    <>
-      <BarraSuperior onCerrarSesion={onCerrarSesion} />
+/* Una ruta protegida: si no hay sesión va al login; si el rol no
+   tiene el módulo muestra el aviso de acceso denegado. */
+function RutaPrivada({
+  usuario,
+  modulo,
+  onCerrarSesion,
+  children,
+}) {
+  if (!usuario) {
+    return <Navigate to="/" replace />
+  }
 
+  if (modulo && !puedeVerModulo(usuario.rol, modulo)) {
+    return (
+      <Layout usuario={usuario} onCerrarSesion={onCerrarSesion}>
+        <main>
+          <h1>Acceso denegado</h1>
+
+          <section>
+            <h2>No tiene permisos</h2>
+
+            <p>
+              Su rol no tiene acceso a este módulo.
+              Comuníquese con un administrador si
+              necesita la funcionalidad.
+            </p>
+
+            <div className="form-actions">
+              <Link to="/dashboard">
+                Ir al dashboard
+              </Link>
+            </div>
+          </section>
+        </main>
+      </Layout>
+    )
+  }
+
+  return (
+    <Layout usuario={usuario} onCerrarSesion={onCerrarSesion}>
       {children}
-    </>
-  )
-}
-
-
-function AccesoDenegado() {
-  return (
-    <main>
-      <h1>Acceso denegado</h1>
-
-      <section>
-        <h2>No tiene permisos</h2>
-
-        <p>
-          Su rol no tiene acceso a este módulo.
-          Comuníquese con un administrador si
-          necesita la funcionalidad.
-        </p>
-
-        <div className="form-actions">
-          <Link to="/dashboard">
-            Volver al panel
-          </Link>
-        </div>
-      </section>
-    </main>
+    </Layout>
   )
 }
 
@@ -192,7 +246,14 @@ function AppContenido() {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  const [error, setError] = useState(() => {
+    /* Aviso cuando el servicio cerró la sesión por token vencido */
+    return new URLSearchParams(
+      window.location.search
+    ).get('sesion') === 'expirada'
+      ? 'Su sesión expiró. Ingrese nuevamente.'
+      : ''
+  })
   const [cargando, setCargando] = useState(false)
 
   const [usuario, setUsuario] = useState(() => {
@@ -235,6 +296,7 @@ function AppContenido() {
   }
 
 
+  /* Cierre por inactividad: 30 minutos sin actividad */
   useEffect(() => {
     if (!usuario) {
       return
@@ -299,22 +361,6 @@ function AppContenido() {
     <Routes>
 
       {/* LOGIN */}
-      <Route
-        path="/usuarios"
-        element={
-          usuario ? (
-            puedeVerModulo(usuario.rol, '/usuarios') ? (
-              <ConBarra onCerrarSesion={handleLogout}>
-                <Usuarios />
-              </ConBarra>
-            ) : (
-              <AccesoDenegado />
-            )
-          ) : (
-            <Navigate to="/" replace />
-          )
-        }
-      />
 
       <Route
         path="/"
@@ -324,15 +370,24 @@ function AppContenido() {
           ) : (
             <main>
 
-              <img
-                className="escena-eco"
-                src={escenaEco}
-                alt="Ruta de entregas en Lima con vehículo eco y cerros verdes"
-                width="800"
-                height="500"
-              />
+              <div className="login-marca">
+                <span
+                  className="login-logo"
+                  aria-hidden="true"
+                >
+                  🌿
+                </span>
 
-              <h1>EcoLogística Lima</h1>
+                <span className="login-marca-texto">
+                  <strong>EcoLogística Lima</strong>
+
+                  <small>
+                    Rutas de reparto en Lima Metropolitana
+                  </small>
+                </span>
+              </div>
+
+              <h1>Bienvenido</h1>
 
               <h2>Iniciar sesión</h2>
 
@@ -373,7 +428,7 @@ function AppContenido() {
 
 
                 {error && (
-                  <p>{error}</p>
+                  <p className="login-error">{error}</p>
                 )}
 
 
@@ -394,144 +449,144 @@ function AppContenido() {
       />
 
 
-      {/* PANEL / DASHBOARD (HU-09) */}
+      {/* PANEL: el dashboard es la pantalla principal, así que
+          /panel redirige allí. Se conserva la ruta para no romper
+          los enlaces que ya existían. */}
+
+      <Route
+        path="/panel"
+        element={<Navigate to="/dashboard" replace />}
+      />
+
+
+      {/* DASHBOARD */}
 
       <Route
         path="/dashboard"
         element={
-          usuario ? (
-            puedeVerModulo(usuario.rol, '/dashboard') ? (
-              <ConBarra onCerrarSesion={handleLogout}>
+          <RutaPrivada
+            usuario={usuario}
+            modulo="/dashboard"
+            onCerrarSesion={handleLogout}
+          >
+            <main>
+              <div className="pagina-header">
+                <div>
+                  <h1>Panel general</h1>
 
-                <main>
+                  <p>
+                    Sesión de{' '}
+                    <strong>{usuario?.nombre}</strong>
+                  </p>
+                </div>
+              </div>
 
-                  <div className="pagina-header">
-                    <div>
-                      <h1>EcoLogística Lima</h1>
-                      <p>
-                        Sesión de{' '}
-                        <strong>{usuario.nombre}</strong>{' '}
-                        ({usuario.rol})
-                      </p>
-                    </div>
-                  </div>
-
-                  <Dashboard />
-
-                  <section>
-                    <h2>Módulos disponibles</h2>
-
-                    <ModulosPermitidos rol={usuario.rol} />
-                  </section>
-
-                </main>
-
-              </ConBarra>
-            ) : (
-              <AccesoDenegado />
-            )
-          ) : (
-            <Navigate to="/" replace />
-          )
+              <Dashboard />
+            </main>
+          </RutaPrivada>
         }
       />
 
 
-      {/* VEHÍCULOS */}
+      {/* MÓDULOS */}
 
       <Route
         path="/vehiculos"
         element={
-          usuario ? (
-            puedeVerModulo(usuario.rol, '/vehiculos') ? (
-              <ConBarra onCerrarSesion={handleLogout}>
-                <Vehiculos />
-              </ConBarra>
-            ) : (
-              <AccesoDenegado />
-            )
-          ) : (
-            <Navigate to="/" replace />
-          )
+          <RutaPrivada
+            usuario={usuario}
+            modulo="/vehiculos"
+            onCerrarSesion={handleLogout}
+          >
+            <Vehiculos />
+          </RutaPrivada>
         }
       />
 
       <Route
         path="/conductores"
         element={
-          usuario ? (
-            puedeVerModulo(usuario.rol, '/conductores') ? (
-              <ConBarra onCerrarSesion={handleLogout}>
-                <Conductores />
-              </ConBarra>
-            ) : (
-              <AccesoDenegado />
-            )
-          ) : (
-            <Navigate to="/" replace />
-          )
+          <RutaPrivada
+            usuario={usuario}
+            modulo="/conductores"
+            onCerrarSesion={handleLogout}
+          >
+            <Conductores />
+          </RutaPrivada>
         }
       />
 
       <Route
         path="/clientes"
         element={
-          usuario ? (
-            puedeVerModulo(usuario.rol, '/clientes') ? (
-              <ConBarra onCerrarSesion={handleLogout}>
-                <Clientes />
-              </ConBarra>
-            ) : (
-              <AccesoDenegado />
-            )
-          ) : (
-            <Navigate to="/" replace />
-          )
+          <RutaPrivada
+            usuario={usuario}
+            modulo="/clientes"
+            onCerrarSesion={handleLogout}
+          >
+            <Clientes />
+          </RutaPrivada>
         }
       />
 
       <Route
         path="/pedidos"
         element={
-          usuario ? (
-            puedeVerModulo(usuario.rol, '/pedidos') ? (
-              <ConBarra onCerrarSesion={handleLogout}>
-                <Pedidos />
-              </ConBarra>
-            ) : (
-              <AccesoDenegado />
-            )
-          ) : (
-            <Navigate to="/" replace />
-          )
+          <RutaPrivada
+            usuario={usuario}
+            modulo="/pedidos"
+            onCerrarSesion={handleLogout}
+          >
+            <Pedidos />
+          </RutaPrivada>
         }
       />
 
       <Route
         path="/rutas"
         element={
-          usuario ? (
-            puedeVerModulo(usuario.rol, '/rutas') ? (
-              <ConBarra onCerrarSesion={handleLogout}>
-                <Rutas />
-              </ConBarra>
-            ) : (
-              <AccesoDenegado />
-            )
-          ) : (
-            <Navigate to="/" replace />
-          )
+          <RutaPrivada
+            usuario={usuario}
+            modulo="/rutas"
+            onCerrarSesion={handleLogout}
+          >
+            <Rutas />
+          </RutaPrivada>
+        }
+      />
+
+      <Route
+        path="/operacion"
+        element={
+          <RutaPrivada
+            usuario={usuario}
+            modulo="/operacion"
+            onCerrarSesion={handleLogout}
+          >
+            <Operacion />
+          </RutaPrivada>
+        }
+      />
+
+      <Route
+        path="/conductor"
+        element={
+          <RutaPrivada
+            usuario={usuario}
+            modulo="/conductor"
+            onCerrarSesion={handleLogout}
+          >
+            <Conductor />
+          </RutaPrivada>
         }
       />
 
 
-      {/* RUTA NO ENCONTRADA */}
+      {/* Cualquier ruta desconocida vuelve al dashboard */}
 
       <Route
         path="*"
-        element={
-          <Navigate to="/" replace />
-        }
+        element={<Navigate to="/dashboard" replace />}
       />
 
     </Routes>
@@ -539,13 +594,10 @@ function AppContenido() {
 }
 
 
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
       <AppContenido />
     </BrowserRouter>
   )
 }
-
-
-export default App

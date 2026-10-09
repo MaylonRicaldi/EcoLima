@@ -204,10 +204,12 @@ def persistir_optimizacion(
             )
 
             tramo = C.minutos_de_conduccion(
-                problema._dist[
-                    ruta.secuencia[pos - 1].indice
-                ][cliente.indice] if pos > 0 else C.distancia_via_km(
-                    lat_i, lon_i, cliente.latitud, cliente.longitud
+                problema._distancia(
+                    problema._idx_origen(ruta.conductor),
+                    problema._idx_parada(cliente),
+                ) if pos == 0 else problema._distancia(
+                    problema._idx_parada(ruta.secuencia[pos - 1]),
+                    problema._idx_parada(cliente),
                 ),
                 P.VELOCIDAD_NORMAL_KMH,
                 1.0,
@@ -331,6 +333,372 @@ def persistir_optimizacion(
     db.commit()
 
     return creadas, advertencias
+
+
+def persistir_reoptimizacion(
+    db, id_ruta, problema, ruta, fecha, entregas_cerradas=None,
+):
+    """Reescribe el recorrido de una ruta conservando su unidad.
+
+    A diferencia de persistir_optimizacion(), aquí no se crea una
+    ruta nueva ni se toca la tabla asignaciones: el vehículo y el
+    conductor que ya tenía la ruta siguen siendo los mismos. Solo se
+    reemplazan las paradas, el orden de visita de los pedidos y los
+    indicadores, porque eso es lo único que la reoptimización cambia.
+
+    `entregas_cerradas` son los pedidos que ya se entregaron o
+    fallaron: quedan fuera del recorrido nuevo y no se tocan. Sus
+    paradas conservan el orden que tenían, para que el registro de
+    lo que ya se hizo no cambie al corregir lo que falta.
+
+    Devuelve el resumen con los valores nuevos.
+    """
+    entregas_cerradas = entregas_cerradas or {}
+
+    distancia_base = _distancia_secuencial(problema)
+
+    base_indicadores = {
+        'distancia_base_km': distancia_base,
+        'duracion_base_minutos': _duracion_secuencial(problema),
+        'co2_base_kg': round(
+            C.calcular_co2(distancia_base, ruta.vehiculo.factor_co2_kg_km),
+            P.REDONDEO,
+        ),
+    }
+
+    # El recorrido anterior se guarda para poder mostrar cuánto se
+    # mejoró y para no perder la trazabilidad (RN-024).
+    anterior = db.execute(
+        text("""
+            SELECT distancia_km, duracion_minutos, costo_total, co2_kg
+            FROM rutas WHERE id_ruta = :id_ruta
+        """),
+        {"id_ruta": id_ruta},
+    ).mappings().first()
+
+    # Solo se borra el recorrido. La asignación no se toca.
+    db.execute(
+        text("DELETE FROM paradas_ruta WHERE id_ruta = :id_ruta"),
+        {"id_ruta": id_ruta},
+    )
+
+    db.execute(
+        text("DELETE FROM ruta_pedidos WHERE id_ruta = :id_ruta"),
+        {"id_ruta": id_ruta},
+    )
+
+    db.execute(
+        text("DELETE FROM indicadores_ruta WHERE id_ruta = :id_ruta"),
+        {"id_ruta": id_ruta},
+    )
+
+    origen = ruta.conductor
+    lat_i = origen.latitud if origen else problema.base['latitud']
+    lon_i = origen.longitud if origen else problema.base['longitud']
+
+    orden = 0
+
+    # ---- parada de inicio ----
+    orden += 1
+
+    db.execute(
+        text("""
+            INSERT INTO paradas_ruta (
+                id_ruta, orden, latitud, longitud,
+                hora_llegada_estimada, tiempo_servicio,
+                tiempo_espera, tipo_parada
+            )
+            VALUES (
+                :id_ruta, :orden, :lat, :lon, :hora, 0, 0, 'INICIO'
+            )
+        """),
+        {
+            "id_ruta": id_ruta,
+            "orden": orden,
+            "lat": lat_i,
+            "lon": lon_i,
+            "hora": _hora_de_ruta(ruta, fecha, True),
+        },
+    )
+
+    minuto = _minuto_inicio(ruta, problema)
+
+    # Las entregas ya cerradas conservan su sitio en el recorrido.
+    # No se recalculan ni se reordenan: son el registro de lo que ya
+    # se hizo, y corregir el recorrido de lo que falta no debe
+    # reescribir lo que ya ocurrió.
+    for id_pedido, datos in sorted(
+        entregas_cerradas.items(),
+        key=lambda kv: kv[1].get('orden_visita') or 0,
+    ):
+        orden += 1
+
+        db.execute(
+            text("""
+                INSERT INTO paradas_ruta (
+                    id_ruta, orden, latitud, longitud,
+                    hora_llegada_estimada, tiempo_servicio,
+                    tiempo_espera, tipo_parada
+                )
+                VALUES (
+                    :id_ruta, :orden, :lat, :lon,
+                    :hora, :servicio, 0, :tipo
+                )
+            """),
+            {
+                "id_ruta": id_ruta,
+                "orden": orden,
+                "lat": datos['latitud'],
+                "lon": datos['longitud'],
+                # La hora real que registró el conductor, no una
+                # estimación: este tramo ya ocurrió.
+                "hora": datos.get('hora_llegada_real')
+                or _hora_absoluta_a_timestamp(minuto, fecha),
+                "servicio": int(C.minutos_de_servicio()),
+                "tipo": datos.get('tipo_parada') or 'ENTREGA',
+            },
+        )
+
+        db.execute(
+            text("""
+                INSERT INTO ruta_pedidos (
+                    id_ruta, id_pedido, orden_visita,
+                    hora_llegada_estimada, hora_llegada_real,
+                    tiempo_espera, penalizacion, estado_entrega
+                )
+                VALUES (
+                    :id_ruta, :id_pedido, :orden,
+                    :hora, :hora_real, 0, 0, :estado
+                )
+            """),
+            {
+                "id_ruta": id_ruta,
+                "id_pedido": id_pedido,
+                "orden": orden,
+                "hora": datos.get('hora_llegada_real')
+                or _hora_absoluta_a_timestamp(minuto, fecha),
+                "hora_real": datos.get('hora_llegada_real'),
+                "estado": datos['estado_entrega'],
+            },
+        )
+
+    for pos, cliente in enumerate(ruta.secuencia):
+        if pos in ruta.posiciones_descanso:
+            orden += 1
+
+            db.execute(
+                text("""
+                    INSERT INTO paradas_ruta (
+                        id_ruta, orden, latitud, longitud,
+                        hora_llegada_estimada,
+                        tiempo_servicio, tiempo_espera, tipo_parada
+                    )
+                    VALUES (
+                        :id_ruta, :orden, :lat, :lon,
+                        :hora, 0, :descanso, 'DESCANSO'
+                    )
+                """),
+                {
+                    "id_ruta": id_ruta,
+                    "orden": orden,
+                    "lat": lat_i,
+                    "lon": lon_i,
+                    "hora": _hora_absoluta_a_timestamp(minuto, fecha),
+                    "descanso": int(P.DESCANSO_OBLIGATORIO_HORAS * 60),
+                },
+            )
+
+            minuto += int(P.DESCANSO_OBLIGATORIO_HORAS * 60)
+
+        orden += 1
+
+        db.execute(
+            text("""
+                INSERT INTO paradas_ruta (
+                    id_ruta, orden, latitud, longitud,
+                    hora_llegada_estimada,
+                    tiempo_servicio, tiempo_espera, tipo_parada
+                )
+                VALUES (
+                    :id_ruta, :orden, :lat, :lon,
+                    :hora, :servicio, :espera, 'ENTREGA'
+                )
+            """),
+            {
+                "id_ruta": id_ruta,
+                "orden": orden,
+                "lat": cliente.latitud,
+                "lon": cliente.longitud,
+                "hora": _hora_absoluta_a_timestamp(
+                    minuto + int(cliente.tiempo_espera), fecha
+                ),
+                "servicio": int(C.minutos_de_servicio()),
+                "espera": int(cliente.tiempo_espera),
+            },
+        )
+
+        tramo = C.minutos_de_conduccion(
+            problema._distancia(
+                problema._idx_origen(ruta.conductor),
+                problema._idx_parada(cliente),
+            ) if pos == 0 else problema._distancia(
+                problema._idx_parada(ruta.secuencia[pos - 1]),
+                problema._idx_parada(cliente),
+            ),
+            P.VELOCIDAD_NORMAL_KMH,
+            1.0,
+        )
+
+        db.execute(
+            text("""
+                INSERT INTO ruta_pedidos (
+                    id_ruta, id_pedido, orden_visita,
+                    hora_llegada_estimada, tiempo_espera,
+                    penalizacion, estado_entrega
+                )
+                VALUES (
+                    :id_ruta, :id_pedido, :orden,
+                    :hora, :espera, :penalizacion, 'PENDIENTE'
+                )
+            """),
+            {
+                "id_ruta": id_ruta,
+                "id_pedido": cliente.id_pedido,
+                "orden": orden,
+                "hora": _hora_absoluta_a_timestamp(
+                    minuto + int(cliente.tiempo_espera), fecha
+                ),
+                "espera": int(cliente.tiempo_espera),
+                "penalizacion": cliente.penalizacion,
+            },
+        )
+
+        minuto += int(tramo) + int(cliente.tiempo_espera)
+
+    # ---- parada de fin ----
+    orden += 1
+
+    db.execute(
+        text("""
+            INSERT INTO paradas_ruta (
+                id_ruta, orden, latitud, longitud,
+                hora_llegada_estimada, tiempo_servicio,
+                tiempo_espera, tipo_parada
+            )
+            VALUES (
+                :id_ruta, :orden, :lat, :lon, :hora, 0, 0, 'FIN'
+            )
+        """),
+        {
+            "id_ruta": id_ruta,
+            "orden": orden,
+            "lat": lat_i,
+            "lon": lon_i,
+            "hora": _hora_de_ruta(ruta, fecha, False),
+        },
+    )
+
+    # ---- cabecera de la ruta, con los valores nuevos ----
+    tco = _tco(ruta)
+
+    db.execute(
+        text("""
+            UPDATE rutas SET
+                hora_inicio = :hora_inicio,
+                hora_fin = :hora_fin,
+                distancia_km = :distancia_km,
+                duracion_minutos = :duracion,
+                distancia_base_km = :distancia_base,
+                duracion_base_minutos = :duracion_base,
+                combustible_litros = :combustible,
+                costo_combustible = :costo_combustible,
+                costo_mantenimiento = :costo_mantenimiento,
+                costo_conductor = :costo_conductor,
+                costo_depreciacion = :costo_depreciacion,
+                costo_seguro = :costo_seguro,
+                costo_total = :costo_total,
+                co2_kg = :co2,
+                co2_evitable_kg = :co2_evitable,
+                cumplimiento_ventanas_pct = :cumplimiento,
+                estado = 'REOPTIMIZADA'
+            WHERE id_ruta = :id_ruta
+        """),
+        {
+            "id_ruta": id_ruta,
+            "hora_inicio": _hora_de_ruta(ruta, fecha, True),
+            "hora_fin": _hora_de_ruta(ruta, fecha, False),
+            "distancia_km": ruta.distancia_km,
+            "duracion": ruta.minutos,
+            "distancia_base": round(
+                base_indicadores['distancia_base_km'], P.REDONDEO
+            ),
+            "duracion_base": round(
+                base_indicadores['duracion_base_minutos'], P.REDONDEO
+            ),
+            "combustible": tco['combustible_litros'],
+            "costo_combustible": tco['costo_combustible'],
+            "costo_mantenimiento": tco['costo_mantenimiento'],
+            "costo_conductor": tco['costo_conductor'],
+            "costo_depreciacion": tco['costo_depreciacion'],
+            "costo_seguro": tco['costo_seguro'],
+            "costo_total": ruta.costo_total,
+            "co2": ruta.co2_kg,
+            "co2_evitable": round(
+                max(0.0, base_indicadores['co2_base_kg'] - ruta.co2_kg),
+                P.REDONDEO,
+            ),
+            "cumplimiento": ruta.cumplimiento_pct,
+        },
+    )
+
+    # ---- horas de conducción del conductor, que cambian al acortar ----
+    if ruta.conductor is not None:
+        db.execute(
+            text("""
+                UPDATE asignaciones SET
+                    horas_conduccion = :horas,
+                    descanso_requerido = :requiere
+                WHERE id_ruta = :id_ruta
+            """),
+            {
+                "id_ruta": id_ruta,
+                "horas": round(ruta.minutos / 60.0, 2),
+                "requiere": ruta.requiere_descanso,
+            },
+        )
+
+    _persistir_indicadores(db, id_ruta, ruta, base_indicadores)
+
+    db.commit()
+
+    orden_pedidos = [c.id_pedido for c in ruta.secuencia]
+
+    def diferencia(valor_nuevo, clave):
+        """Cuánto mejoró (o empeoró) cada indicador."""
+        if not anterior:
+            return None
+
+        viejo = float(anterior[clave] or 0)
+
+        return round(float(valor_nuevo) - viejo, P.REDONDEO)
+
+    return {
+        "id_ruta": id_ruta,
+        "distancia_km": ruta.distancia_km,
+        "duracion_minutos": ruta.minutos,
+        "costo_total": ruta.costo_total,
+        "co2_kg": ruta.co2_kg,
+        "cumplimiento_ventanas_pct": ruta.cumplimiento_pct,
+        "orden_pedidos": orden_pedidos,
+        "cambio": {
+            "distancia_km": diferencia(ruta.distancia_km, "distancia_km"),
+            "duracion_minutos": diferencia(
+                ruta.minutos, "duracion_minutos"
+            ),
+            "costo_total": diferencia(ruta.costo_total, "costo_total"),
+            "co2_kg": diferencia(ruta.co2_kg, "co2_kg"),
+        },
+    }
 
 
 def _persistir_indicadores(db, id_ruta, ruta, base):

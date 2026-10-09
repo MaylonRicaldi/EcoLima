@@ -1,4 +1,4 @@
-import { getToken } from './auth'
+import { getToken, expirarSesion } from './auth'
 
 const API_URL = 'http://localhost:8000'
 
@@ -38,6 +38,14 @@ async function solicitud(url, opciones = {}) {
   })
 
   const data = await response.json()
+
+  if (response.status === 401) {
+    expirarSesion()
+
+    throw new Error(
+      'Su sesión expiró. Ingrese nuevamente.'
+    )
+  }
 
   if (!response.ok) {
     throw new Error(extraerError(data))
@@ -85,6 +93,14 @@ export async function cambiarEstadoConductor(idConductor, estado) {
 
 export async function listarLicencias(idConductor) {
   return solicitud(`/conductores/${idConductor}/licencias`)
+}
+
+/* Qué vehículos de la flota puede manejar este conductor, según
+   la categoría de sus licencias vigentes. */
+export async function listarVehiculosCompatibles(idConductor) {
+  return solicitud(
+    `/conductores/${idConductor}/vehiculos-compatibles`
+  )
 }
 
 export async function crearLicencia(idConductor, datos) {

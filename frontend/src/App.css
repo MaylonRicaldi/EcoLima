@@ -22,6 +22,39 @@
   -webkit-backdrop-filter: blur(1.25rem) saturate(170%);
   backdrop-filter: blur(1.25rem) saturate(170%);
   box-shadow: var(--sombra-suave), var(--brillo);
+  animation: aparecer var(--dur-lenta) var(--ease-fuerte) both;
+}
+
+/* Filamento de luz que recorre el borde superior. Es lo primero que
+   se ve al cambiar de página, así que da la sensación de que la
+   aplicación está encendida. */
+.barra-superior::before {
+  content: '';
+  position: absolute;
+  inset: -1px -1px auto -1px;
+  height: 0.125rem;
+  border-radius: 1rem 1rem 0 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--verde),
+    var(--aqua),
+    var(--lila),
+    transparent
+  );
+  background-size: 260% 100%;
+  animation: filamento 7s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes filamento {
+  from {
+    background-position: 140% 0;
+  }
+
+  to {
+    background-position: -140% 0;
+  }
 }
 
 .barra-superior-acciones {
@@ -147,6 +180,107 @@ main:has(> form) > form > button {
 main:has(> form) > form > button:hover:not(:disabled) {
   background: linear-gradient(120deg, var(--verde), var(--aqua) 60%, var(--lila));
   box-shadow: 0 1.25rem 2.375rem -0.875rem rgba(5, 150, 105, 0.75);
+}
+
+/* ---------------- LOGIN ---------------- */
+
+/* Marca: en lugar de un dibujo, una insignia con degradado y un
+   halo que late despacio, para que la pantalla se sienta viva sin
+   recargar la vista con una ilustración. */
+.login-marca {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.75rem;
+  text-align: left;
+}
+
+.login-logo {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  flex-shrink: 0;
+  border-radius: 0.9375rem;
+  font-size: 1.5rem;
+  line-height: 1;
+  background: linear-gradient(135deg, var(--verde-fuerte), var(--aqua));
+  box-shadow: 0 0.75rem 1.75rem -0.625rem rgba(5, 150, 105, 0.75);
+}
+
+/* Halo que respira alrededor de la insignia */
+.login-logo::after {
+  content: '';
+  position: absolute;
+  inset: -0.25rem;
+  border-radius: 1.1875rem;
+  border: 0.0625rem solid rgba(16, 185, 129, 0.45);
+  animation: halo 3s var(--ease-fuerte) infinite;
+  pointer-events: none;
+}
+
+@keyframes halo {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: scale(1.09);
+  }
+}
+
+.login-marca-texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  text-align: left;
+}
+
+.login-marca-texto strong {
+  font-size: 1.05rem;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+  color: var(--texto);
+}
+
+.login-marca-texto small {
+  font-size: 0.78rem;
+  color: var(--texto-tenue);
+}
+
+/* El título del login ya no lleva la ilustración encima: el
+   degradado va en el propio texto */
+main:has(> form) h1 {
+  margin-bottom: 0.25rem;
+}
+
+.login-error {
+  padding: 0.6875rem 0.875rem;
+  margin: 0.375rem 0 0;
+  border-radius: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: left;
+  color: #9f1239;
+  background: rgba(255, 228, 230, 0.85);
+  border: 1px solid rgba(251, 113, 133, 0.5);
+  animation: error-entra 0.35s var(--ease) both;
+}
+
+@keyframes error-entra {
+  from {
+    opacity: 0;
+    transform: translateY(-0.375rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Ilustración eco del login: SVG vectorial, nítida en 4K */
@@ -324,6 +458,597 @@ main a:hover {
   padding: 0.5rem 0.875rem;
 }
 
+/* ---------------- GESTOR DE VENTANAS DE TIEMPO ---------------- */
+
+.gestor-ventanas {
+  display: flex;
+  flex-direction: column;
+  gap: 1.125rem;
+  padding: 1.5rem 1.375rem;
+  border-radius: 1.5rem;
+  border: 1px solid var(--borde);
+  background: var(--vidrio);
+  -webkit-backdrop-filter: blur(1.375rem) saturate(165%);
+  backdrop-filter: blur(1.375rem) saturate(165%);
+  box-shadow: var(--sombra), var(--brillo);
+  animation: aparecer var(--dur-lenta) var(--ease-fuerte) both;
+  transition: box-shadow var(--dur) var(--ease-fuerte);
+}
+
+.gestor-ventanas-cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.875rem;
+}
+
+.gestor-ventanas-sub {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--texto-medio);
+  max-width: 42rem;
+  margin-top: 0.25rem;
+}
+
+.gestor-ventanas-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.gestor-ventanas-acciones button {
+  font-size: 0.82rem;
+  padding: 0.5625rem 0.9375rem;
+}
+
+/* --- Formulario de alta/edición --- */
+
+.formulario-ventana {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  padding: 1.125rem;
+  border-radius: 1.125rem;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: rgba(236, 253, 245, 0.55);
+  animation: desplegar var(--dur-lenta) var(--ease-fuerte) both;
+}
+
+@keyframes desplegar {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem) scaleY(0.94);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+.formulario-ventana-campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 0.25rem 0.875rem;
+}
+
+/* --- Lista de ventanas --- */
+
+.lista-ventanas {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ventana {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  padding: 0.8125rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--borde-tenue);
+  background: var(--vidrio-bajo);
+  transition:
+    transform var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease-fuerte),
+    border-color var(--dur) var(--ease-fuerte),
+    background var(--dur) var(--ease-fuerte);
+  animation: entrar var(--dur-lenta) var(--ease-fuerte) both;
+}
+
+@keyframes entrar {
+  from {
+    opacity: 0;
+    transform: translateX(-0.75rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.ventana:hover {
+  transform: translateX(0.1875rem);
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 0.625rem 1.5rem -0.875rem rgba(9, 62, 74, 0.5);
+}
+
+.ventana.en-edicion {
+  border-color: rgba(16, 185, 129, 0.65);
+  background: rgba(236, 253, 245, 0.7);
+  box-shadow:
+    0 0 0 0.1875rem rgba(16, 185, 129, 0.14),
+    var(--brillo);
+}
+
+.ventana-hora {
+  font-family: var(--mono);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--texto);
+  font-variant-numeric: tabular-nums;
+}
+
+.ventana-horario {
+  display: flex;
+  align-items: center;
+  gap: 0.4375rem;
+}
+
+.ventana-guion {
+  width: 1.125rem;
+  height: 0.125rem;
+  border-radius: 99px;
+  background: linear-gradient(
+    90deg,
+    var(--verde),
+    var(--aqua)
+  );
+}
+
+.ventana-datos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.875rem;
+  font-size: 0.8rem;
+  color: var(--texto-medio);
+}
+
+.badge-libre,
+.badge-en-uso {
+  padding: 0.1875rem 0.5625rem;
+  border-radius: 99px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.badge-libre {
+  background: rgba(236, 253, 245, 0.9);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: var(--verde-fuerte);
+}
+
+.badge-en-uso {
+  background: rgba(255, 251, 235, 0.9);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #b45309;
+}
+
+.ventana-acciones {
+  display: flex;
+  gap: 0.375rem;
+}
+
+.boton-icono {
+  padding: 0.375rem 0.6875rem;
+  font-size: 0.75rem;
+  border-radius: 0.5625rem;
+}
+
+.boton-icono.peligro {
+  color: #be123c;
+  border-color: rgba(251, 113, 133, 0.35);
+}
+
+.boton-icono.peligro:hover:not(:disabled) {
+  background: rgba(255, 228, 230, 0.9);
+  border-color: rgba(251, 113, 133, 0.7);
+}
+
+/* --- Estados vacíos y de carga --- */
+
+.ventanas-vacias {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 1.875rem 1.25rem;
+  border-radius: 1.125rem;
+  border: 1px dashed rgba(13, 71, 84, 0.22);
+  background: rgba(255, 255, 255, 0.28);
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--texto-medio);
+}
+
+.ventanas-vacias strong {
+  font-size: 1rem;
+  color: var(--texto);
+}
+
+.ventanas-vacias p {
+  max-width: 28rem;
+  line-height: 1.5;
+}
+
+.ventanas-vacias-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.375rem;
+}
+
+/* El punto que late ahora vive en <Esqueleto> (.esqueleto-punto);
+   aquí sólo queda la animación que comparte. */
+
+@keyframes esperar {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.5;
+  }
+
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(0.7);
+    opacity: 0.5;
+  }
+}
+
+@keyframes latido-punto {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
+  }
+
+  70% {
+    box-shadow: 0 0 0 0.625rem rgba(16, 185, 129, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+@media (max-width: 52rem) {
+  .ventana {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'horario uso'
+      'datos  datos'
+      'acciones acciones';
+    gap: 0.5rem 0.75rem;
+  }
+
+  .ventana-horario {
+    grid-area: horario;
+  }
+
+  .ventana-datos {
+    grid-area: datos;
+  }
+
+  .ventana-uso {
+    grid-area: uso;
+    justify-self: end;
+  }
+
+  .ventana-acciones {
+    grid-area: acciones;
+    justify-content: flex-end;
+  }
+}
+
+/* ---------------- AVISO DE TRAZADO ESTIMADO ---------------- */
+
+/* Cuando el motor de rutas no responde, el mapa lo dice con un
+   aviso en vez de dibujar una línea recta haciéndola pasar por
+   una calle que no existe. */
+.aviso-trazado {
+  padding: 0.3125rem 0.6875rem;
+  border-radius: 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: #b45309;
+  background: rgba(255, 251, 235, 0.95);
+  border: 0.0625rem solid rgba(245, 158, 11, 0.5);
+  box-shadow: 0 0.375rem 1rem -0.5rem rgba(180, 83, 9, 0.5);
+}
+
+.aviso-trazado::before {
+  display: none;
+}
+
+/* ---------------- ESQUELETOS DE CARGA ---------------- */
+
+.esqueleto {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+}
+
+.esqueleto-texto {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--texto-medio);
+}
+
+/* Punto que late mientras espera la respuesta */
+.esqueleto-punto {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--verde);
+  animation: latido-punto 1.3s var(--ease-fuerte) infinite;
+}
+
+.esqueleto-filas {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.esqueleto-fila {
+  position: relative;
+  height: 2.25rem;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.45);
+  box-shadow: inset 0 1px 2px rgba(9, 62, 74, 0.06);
+}
+
+/* El brillo barre la fila de izquierda a derecha. El retardo sale
+   de --indice para que las filas no brillen a la vez: se ve el
+   dato "corriendo" hacia abajo. */
+.esqueleto-fila::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.85),
+    transparent
+  );
+  animation: destellar 1.35s var(--ease-fuerte) infinite;
+  animation-delay: calc(var(--indice) * 0.11s);
+}
+
+@keyframes destellar {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* Las tarjetas de esqueleto imitan las del dashboard */
+.esqueleto-tarjetas .esqueleto-filas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.75rem;
+}
+
+.esqueleto-tarjetas .esqueleto-fila {
+  height: 4.5rem;
+  border-radius: 1rem;
+}
+
+/* ---------------- TIPO DE COMERCIO ---------------- */
+
+.ayuda-campo {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--texto-tenue);
+}
+
+/* Texto que explica qué hace un botón antes de pulsarlo. Se usa en
+   las acciones que cambian el comportamiento del sistema, para que
+   nadie las ejecute creyendo que hacen otra cosa. */
+.ayuda-accion {
+  max-width: 46rem;
+  margin: 0.25rem 0 0.75rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--texto-tenue);
+}
+
+/* Sustituye a los botones de una entrega ya cerrada. No es un botón
+   porque no hay nada que pulsar: la entrega quedó registrada. */
+.entrega-cerrada {
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: #0f766e;
+  background: rgba(240, 253, 250, 0.9);
+  border: 1px solid rgba(13, 148, 136, 0.35);
+  border-radius: 99px;
+  padding: 0.1875rem 0.625rem;
+  display: inline-block;
+}
+
+.chip-tipo-comercio {
+  padding: 0.1875rem 0.625rem;
+  border-radius: 99px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  white-space: nowrap;
+  background: rgba(240, 253, 250, 0.9);
+  border: 1px solid rgba(13, 148, 136, 0.35);
+  color: #0f766e;
+}
+
+.tipo-no-elegido {
+  color: var(--texto-tenue);
+}
+
+/* ---------------- HABILITACIÓN POR LICENCIA ---------------- */
+
+.licencias-conductor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4375rem;
+  font-size: 0.88rem;
+  color: var(--texto-medio);
+}
+
+.chip-licencia {
+  padding: 0.1875rem 0.625rem;
+  border-radius: 99px;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: rgba(236, 253, 245, 0.9);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: var(--verde-fuerte);
+}
+
+.sin-licencia {
+  padding: 0.1875rem 0.625rem;
+  border-radius: 99px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: rgba(255, 228, 230, 0.9);
+  border: 1px solid rgba(244, 63, 94, 0.45);
+  color: #9f1239;
+}
+
+.lista-habilitacion {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.habilitacion-item {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 0.5rem 0.875rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.875rem;
+  border: 1px solid var(--borde-tenue);
+  background: var(--vidrio-bajo);
+  transition:
+    transform var(--dur) var(--ease),
+    border-color var(--dur) var(--ease-fuerte);
+}
+
+.habilitacion-item:hover {
+  transform: translateX(0.1875rem);
+}
+
+.habilitacion-item.si {
+  border-left: 0.25rem solid var(--verde);
+}
+
+.habilitacion-item.no {
+  border-left: 0.25rem solid var(--rosa);
+  background: rgba(255, 241, 242, 0.35);
+}
+
+.habilitacion-placa {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--texto);
+  font-variant-numeric: tabular-nums;
+}
+
+.habilitacion-tipo {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--texto-tenue);
+  white-space: nowrap;
+}
+
+.habilitacion-detalle {
+  font-size: 0.83rem;
+  line-height: 1.35;
+  color: var(--texto-medio);
+}
+
+.chip-si,
+.chip-no {
+  padding: 0.1875rem 0.5625rem;
+  border-radius: 99px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.chip-si {
+  background: rgba(236, 253, 245, 0.9);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: var(--verde-fuerte);
+}
+
+.chip-no {
+  background: rgba(255, 228, 230, 0.9);
+  border: 1px solid rgba(244, 63, 94, 0.45);
+  color: #9f1239;
+}
+
+@media (max-width: 52rem) {
+  .habilitacion-item {
+    grid-template-columns: auto auto;
+    grid-template-areas:
+      'placa chip'
+      'tipo  tipo'
+      'detalle detalle';
+    gap: 0.25rem 0.625rem;
+  }
+
+  .habilitacion-placa {
+    grid-area: placa;
+  }
+
+  .habilitacion-tipo {
+    grid-area: tipo;
+  }
+
+  .habilitacion-detalle {
+    grid-area: detalle;
+  }
+
+  .habilitacion-item .chip-si,
+  .habilitacion-item .chip-no {
+    grid-area: chip;
+    justify-self: end;
+  }
+}
+
 /* ---------------- TABLAS ---------------- */
 
 .tabla-container,
@@ -385,11 +1110,14 @@ tbody tr:last-child td {
 }
 
 tbody tr {
-  transition: background 0.16s ease;
+  transition:
+    background 0.16s ease,
+    box-shadow 0.16s ease;
 }
 
 tbody tr:hover {
-  background: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0.3125rem 0 0 -0.125rem var(--verde);
 }
 
 tbody td:first-child {
@@ -747,6 +1475,452 @@ nav.modulos p {
   margin: 0;
 }
 
+/* Estado de tráfico (RF-04: verde / amarillo / rojo) */
+.estado-trafico-verde {
+  color: #065f46;
+  background: rgba(209, 250, 229, 0.85);
+  border-color: rgba(16, 185, 129, 0.42);
+}
+
+.estado-trafico-amarillo {
+  color: #92400e;
+  background: rgba(254, 243, 199, 0.85);
+  border-color: rgba(245, 158, 11, 0.45);
+}
+
+.estado-trafico-rojo {
+  color: #9f1239;
+  background: rgba(255, 228, 230, 0.85);
+  border-color: rgba(244, 63, 94, 0.42);
+}
+
+/* Nivel de incidente */
+.estado-nivel-bajo {
+  color: var(--texto-medio);
+  background: rgba(226, 232, 240, 0.8);
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+.estado-nivel-medio {
+  color: #92400e;
+  background: rgba(254, 243, 199, 0.85);
+  border-color: rgba(245, 158, 11, 0.45);
+}
+
+.estado-nivel-alto {
+  color: #9f1239;
+  background: rgba(255, 228, 230, 0.85);
+  border-color: rgba(244, 63, 94, 0.42);
+}
+
+/* Estado del incidente */
+.estado-inc-activo {
+  color: #9f1239;
+  background: rgba(255, 228, 230, 0.85);
+  border-color: rgba(244, 63, 94, 0.42);
+}
+
+.estado-inc-resuelto {
+  color: #065f46;
+  background: rgba(209, 250, 229, 0.85);
+  border-color: rgba(16, 185, 129, 0.42);
+}
+
+.estado-inc-cancelado {
+  color: var(--texto-medio);
+  background: rgba(226, 232, 240, 0.8);
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+.celda-sub {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--texto-tenue);
+}
+
+/* ---------------- MODO CONDUCTOR (RES-07 / RNF-03 / RNF-05) ----------------
+   Pensado para usar en el vehículo: tipografía grande, botones anchos,
+   contraste alto y lenguaje directo. */
+
+.modo-conductor {
+  max-width: 44rem;
+  margin: 0 auto;
+  gap: 1.5rem;
+}
+
+.modo-conductor h1 {
+  font-size: clamp(1.8rem, 1.3rem + 2vw, 2.4rem);
+}
+
+.conductor-grande {
+  font-size: 1.15rem;
+  line-height: 1.6;
+  color: var(--texto);
+}
+
+.conductor-espera {
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+}
+
+.conductor-espera h2 {
+  justify-content: center;
+}
+
+.conductor-datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.75rem;
+}
+
+.conductor-dato {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--borde-tenue);
+  background: var(--vidrio-bajo);
+  box-shadow: var(--brillo);
+}
+
+.conductor-dato-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--texto-tenue);
+}
+
+.conductor-dato strong {
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+/* Lista de paradas */
+.lista-paradas {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  counter-reset: parada;
+}
+
+.lista-paradas li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 2px solid var(--borde-tenue);
+  background: var(--vidrio-alto);
+}
+
+.parada-pendiente {
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
+.parada-hecha {
+  border-color: rgba(16, 185, 129, 0.5);
+  background: rgba(209, 250, 229, 0.55);
+}
+
+.parada-fallida {
+  border-color: rgba(244, 63, 94, 0.5);
+  background: rgba(255, 228, 230, 0.55);
+}
+
+.parada-numero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    var(--verde-fuerte),
+    var(--aqua)
+  );
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.parada-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.parada-direccion {
+  font-size: 1.05rem;
+  line-height: 1.35;
+}
+
+.parada-cliente,
+.parada-detalle {
+  font-size: 0.88rem;
+  color: var(--texto-medio);
+}
+
+.parada-express {
+  align-self: flex-start;
+  margin-top: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 99px;
+  background: rgba(190, 18, 60, 0.12);
+  border: 1px solid rgba(190, 18, 60, 0.4);
+  color: #9f1239;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.parada-estado {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--texto-tenue);
+}
+
+.parada-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  flex: 1 1 100%;
+}
+
+.parada-acciones button,
+.boton-grande {
+  flex: 1 1 8rem;
+  padding: 0.875rem 1rem;
+  font-size: 1rem;
+  border-radius: 0.875rem;
+}
+
+.boton-realizado {
+  color: #fff;
+  background: linear-gradient(120deg, #059669, #10b981);
+  border: none;
+  box-shadow: 0 0.625rem 1.25rem -0.5rem rgba(5, 150, 105, 0.7);
+}
+
+.boton-realizado:hover:not(:disabled) {
+  background: linear-gradient(120deg, #10b981, #22d3ee);
+}
+
+.boton-no-realizado {
+  color: #9f1239;
+  background: rgba(255, 228, 230, 0.85);
+  border: 1px solid rgba(244, 63, 94, 0.5);
+}
+
+.boton-no-realizado:hover:not(:disabled) {
+  background: rgba(254, 202, 202, 0.95);
+}
+
+.conductor-resumen {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--texto-medio);
+}
+
+.conductor-form-reporte {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+/* ---------------- SELECTOR DE UBICACIÓN (HU-05) ---------------- */
+
+.selector-ubicacion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.etiqueta-mapa {
+  margin-bottom: 0;
+}
+
+/* ---------------- FICHA DEL CLIENTE EN PEDIDOS ---------------- */
+
+.ficha-cliente {
+  padding: 1rem 1.125rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  background: rgba(236, 253, 245, 0.6);
+}
+
+.ficha-cliente-cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.625rem;
+  margin-bottom: 0.75rem;
+}
+
+.ficha-cliente-cabecera strong {
+  font-size: 0.95rem;
+  color: var(--texto);
+}
+
+.ficha-cliente-cabecera button {
+  padding: 0.5rem 0.875rem;
+  font-size: 0.8rem;
+}
+
+.ficha-cliente-datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.625rem 1rem;
+  margin: 0;
+}
+
+.ficha-cliente-datos dt {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--texto-tenue);
+}
+
+.ficha-cliente-datos dd {
+  margin: 0.125rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  color: var(--texto-medio);
+}
+
+.ficha-cliente .instruccion-mapa {
+  margin-top: 0.75rem;
+  margin-bottom: 0;
+}
+
+.buscador-ubicacion {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.625rem;
+  margin-bottom: 0;
+}
+
+.buscador-ubicacion label {
+  flex: 1;
+}
+
+.buscador-cargando {
+  flex-shrink: 0;
+  padding-bottom: 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--verde-medio, #059669);
+  white-space: nowrap;
+}
+
+.resultados-busqueda {
+  list-style: none;
+  padding: 0.25rem;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  max-height: 15rem;
+  overflow-y: auto;
+  border-radius: 0.875rem;
+  border: 1px solid var(--borde-tenue);
+  background: var(--vidrio-alto, rgba(255, 255, 255, 0.82));
+  box-shadow: 0 0.75rem 1.75rem rgba(4, 47, 36, 0.14);
+}
+
+.resultados-busqueda button {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
+  text-align: left;
+  padding: 0.5625rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.35;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: transparent;
+}
+
+.resultados-busqueda button:hover,
+.resultados-busqueda .sugerencia.activa {
+  transform: none;
+  border-color: rgba(16, 185, 129, 0.5);
+  background: rgba(236, 253, 245, 0.9);
+}
+
+.resultados-busqueda strong {
+  font-weight: 650;
+  color: var(--texto);
+}
+
+.resultados-busqueda span {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--texto-tenue);
+}
+
+.mapa-ubicador {
+  width: 100%;
+  border-radius: 1rem;
+  border: 1px solid var(--borde-tenue);
+  overflow: hidden;
+  z-index: 0;
+}
+
+.instruccion-mapa {
+  font-size: 0.82rem;
+  color: var(--texto-medio);
+}
+
+.coordenadas-elegidas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--borde-tenue);
+  background: var(--vidrio-bajo);
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  color: var(--texto-medio);
+}
+
+.coordenada-fuera {
+  padding: 0.125rem 0.5rem;
+  border-radius: 99px;
+  background: rgba(255, 228, 230, 0.85);
+  border: 1px solid rgba(244, 63, 94, 0.45);
+  color: #9f1239;
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 0.72rem;
+}
+
+.aviso-validacion {
+  margin-top: 0.25rem;
+  font-size: 0.82rem;
+  color: #b45309;
+}
+
 /* ---------------- RESPONSIVE ---------------- */
 
 @media (max-width: 45rem) {
@@ -786,5 +1960,24 @@ nav.modulos p {
   .barra-superior-marca {
     font-size: 0.62rem;
     letter-spacing: 0.1em;
+  }
+
+  .lista-paradas li {
+    gap: 0.625rem;
+    padding: 0.875rem;
+  }
+
+  .buscador-ubicacion {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .buscador-cargando {
+    padding-bottom: 0;
+  }
+
+  .parada-acciones button {
+    flex: 1 1 100%;
+    min-height: 3rem;
   }
 }

@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import (
     get_db,
     id_conductor_de,
+    require_entrega_de_ruta,
     require_permiso,
 )
 from app.core.permisos import (
@@ -27,12 +28,14 @@ from app.schemas.ruta import (
     OptimizacionRespuesta,
     OptimizarRequest,
     ReoptimizarRequest,
+    ReoptimizacionRespuesta,
     RutaEstadoUpdate,
     RutaResumen,
 )
 from app.services import datos_optimizacion as D
 from app.services import optimizador as OPT
 from app.services import persistencia_rutas as PR
+from app.services import roads as R
 
 
 router = APIRouter(
@@ -111,17 +114,17 @@ def optimizar_rutas(
 
     if bloqueadas:
         advertencias.append(
-            "Vehículos excluidos por restricción vehicular MTC "
-            f"del día {dia_semana} (RN-003): {', '.join(bloqueadas)}"
+            "Vehículos excluidos por la restricción vehicular "
+            f"del día {dia_semana}: {', '.join(bloqueadas)}"
         )
 
     if not elegibles:
         raise HTTPException(
             status_code=400,
             detail=(
-                "Ningún vehículo activo es elegible hoy por "
-                f"restricción vehicular MTC (RN-003). "
-                f"Placas excluidas: {', '.join(bloqueadas)}"
+                "Ningún vehículo activo puede circular hoy por la "
+                "restricción vehicular que le corresponde por su "
+                f"placa. Excluidas: {', '.join(bloqueadas)}"
             ),
         )
 
@@ -176,6 +179,20 @@ def optimizar_rutas(
                 })
             continue
 
+        # Una ruta sin conductor no es operativa: la relación
+        # RUTA -> ASIGNACION -> VEHICULO + CONDUCTOR debe existir
+        # siempre (HU-06). Esos pedidos vuelven a PENDIENTE.
+        if ruta.conductor is None:
+            for c in ruta.secuencia:
+                no_planificados.append({
+                    "id_pedido": c.id_pedido,
+                    "motivo": (
+                        "No hay conductores disponibles con licencia "
+                        "vigente para asignar"
+                    ),
+                })
+            continue
+
         planificados.append(ruta)
 
     creadas, _ = PR.persistir_optimizacion(
@@ -185,6 +202,16 @@ def optimizar_rutas(
     )
 
     segundos = round(_time.perf_counter() - t0, 3)
+
+    # Si el motor de rutas no respondió, las distancias salieron de la
+    # estimación por factor de rodeo. Se dice con todas las letras para
+    # que nadie tome esos kilómetros como exactos.
+    if not problema._usar_calles_reales:
+        advertencias.append(
+            "No se pudo consultar el motor de rutas: las distancias "
+            "son una estimación por factor de rodeo, no el trazado "
+            "real de las calles"
+        )
 
     for item in creadas:
         pedidos_ids = set(item.pop("pedidos"))
@@ -208,6 +235,7 @@ def optimizar_rutas(
         "vehiculos_elegibles": len(elegibles),
         "conductores_disponibles": len(conductores),
         "segundos_resueltos": segundos,
+        "calles_reales": problema._usar_calles_reales,
         "advertencias": advertencias,
     }
 
@@ -373,6 +401,19 @@ def obtener_ruta(
     resultado["asignacion"] = dict(asignacion) if asignacion else None
     resultado["indicador"] = dict(indicador) if indicador else None
 
+    # Trazado real por calzada para dibujar la ruta siguiendo las
+    # calles. Si el motor de rutas no responde, se devuelve la línea
+    # recta entre paradas y `trazado_real` vale False, para que la
+    # interfaz lo diga en vez de fingir que sí.
+    paradas_visitadas = [
+        p for p in paradas if p["tipo_parada"] != "DESCANSO"
+    ]
+
+    trazado = R.trazado_ruta([dict(p) for p in paradas_visitadas])
+
+    resultado["trazado"] = trazado
+    resultado["trazado_real"] = R.disponible()
+
     return resultado
 
 
@@ -416,74 +457,182 @@ def cambiar_estado_ruta(
     return dict(r)
 
 
-@router.post(
-    "/{id_ruta}/reoptimizar",
-    response_model=OptimizacionRespuesta,
-)
+@router.post("/{id_ruta}/reoptimizar")
 def reoptimizar_ruta(
     id_ruta: int,
     datos: ReoptimizarRequest,
     db: Session = Depends(get_db),
     usuario=Depends(require_permiso(RUTAS, ESCRITURA)),
 ):
-    """Reoptimiza una ruta existente (HU-08).
+    """Corrige el recorrido de una ruta existente (HU-08).
 
-    Trabaja sobre la ruta indicada: libera sus pedidos y vuelve a
-    planificar junto con los demás pendientes del mismo día.
+    Qué cambia y qué no:
+
+      - cambia el ORDEN de visita de las paradas, a la luz del
+        tráfico del momento, las ventanas de tiempo, los perecederos
+        y el resto de factores de la consigna
+      - NO cambia el vehículo
+      - NO cambia el conductor
+      - NO se coge ni se suelta ningún pedido
+
+    Es decir: es la misma unidad con la misma carga, reordenada. La
+    ruta tampoco se destruye ni se sustituye por otra: se actualiza
+    la misma, y queda en estado REOPTIMIZADA.
     """
-    fecha = db.execute(
-        text("SELECT fecha FROM rutas WHERE id_ruta = :id_ruta"),
-        {"id_ruta": id_ruta},
-    ).scalar()
+    t0 = _time.perf_counter()
 
-    if fecha is None:
+    fila = db.execute(
+        text("SELECT fecha, estado FROM rutas WHERE id_ruta = :id_ruta"),
+        {"id_ruta": id_ruta},
+    ).mappings().first()
+
+    if not fila:
         raise HTTPException(
             status_code=404,
             detail="La ruta no existe",
         )
 
-    estado = db.execute(
-        text("SELECT estado FROM rutas WHERE id_ruta = :id_ruta"),
-        {"id_ruta": id_ruta},
-    ).scalar()
-
-    if estado in ('COMPLETADA', 'CANCELADA'):
+    if fila['estado'] in ('COMPLETADA', 'CANCELADA'):
         raise HTTPException(
             status_code=400,
             detail=(
-                f"No se puede reoptimizar una ruta {estado.lower()}"
+                f"No se puede corregir el recorrido de una ruta "
+                f"{fila['estado'].lower()}: ya está cerrada y solo "
+                f"queda como registro."
             ),
         )
 
-    # Liberar los pedidos de la ruta para volver a planificar
-    pedidos_ids = db.execute(
-        text("SELECT id_pedido FROM ruta_pedidos WHERE id_ruta = :id_ruta"),
-        {"id_ruta": id_ruta},
-    ).scalars().all()
+    fecha = fila['fecha']
 
-    for pid in pedidos_ids:
-        db.execute(
-            text("UPDATE pedidos SET estado = 'PENDIENTE' WHERE id_pedido = :id"),
-            {"id": pid},
+    # El vehículo y el conductor que ya tiene. No se buscan otros.
+    vehiculo = D.vehiculo_de_ruta(db, id_ruta)
+    conductor = D.conductor_de_ruta(db, id_ruta)
+
+    if vehiculo is None or conductor is None:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "La ruta todavía no tiene vehículo y conductor "
+                "asignados. La reoptimización conserva los que ya "
+                "tiene, así que primero hay que asignarlos."
+            ),
         )
 
-    db.execute(
-        text("UPDATE rutas SET estado = 'REOPTIMIZADA' WHERE id_ruta = :id_ruta"),
-        {"id_ruta": id_ruta},
+    pedidos = D.pedidos_de_ruta(db, id_ruta)
+
+    if not pedidos:
+        raise HTTPException(
+            status_code=400,
+            detail="La ruta no tiene pedidos que reoptimizar",
+        )
+
+    orden_anterior = [p['id_pedido'] for p in pedidos]
+
+    # Los pedidos ya entregados o fallados no se tocan: son el
+    # registro de lo que ya se hizo. Corregir el recorrido solo
+    # rearrange lo que queda por entregar.
+    cerrados = D.entregas_cerradas_de_ruta(db, id_ruta)
+
+    pendientes = [
+        p for p in pedidos
+        if p['id_pedido'] not in cerrados
+    ]
+
+    if not pendientes:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Esta ruta ya no tiene pedidos por entregar: están "
+                "todos entregados o fallidos. Una ruta cerrada no se "
+                "vuelve a optimizar."
+            ),
+        )
+
+    advertencias = []
+
+    if cerrados:
+        advertencias.append(
+            f"{len(cerrados)} entrega(s) ya cerrada(s) se conservan "
+            f"como registro y no se tocan"
+        )
+
+    if vehiculo['estado'] != 'ACTIVO':
+        advertencias.append(
+            f"El vehículo {vehiculo['placa']} está "
+            f"{vehiculo['estado'].lower()}. La reoptimización no "
+            f"cambia de vehículo, así que se reordena igualmente."
+        )
+
+    if not (conductor['categorias_licencia'] or []):
+        advertencias.append(
+            f"{conductor['nombre']} {conductor['apellido']} no tiene "
+            f"licencia vigente. La reoptimización no cambia de "
+            f"conductor."
+        )
+
+    problema = OPT.ProblemaVRPTW(
+        pedidos=pendientes,
+        vehiculos=[vehiculo],
+        conductores=[conductor],
+        base=D.punto_inicio_operativa(db),
+        fecha=fecha,
+        trafico=D.trafico_actual(db),
+        incidentes=D.incidentes_activos(db),
     )
 
-    D.eliminar_planificacion_anterior(db, id_ruta)
-    db.commit()
+    if not problema._usar_calles_reales:
+        advertencias.append(
+            "No se pudo consultar el motor de rutas: el recorrido se "
+            "calculó con una estimación por factor de rodeo"
+        )
 
-    return optimizar_rutas(
-        OptimizarRequest(
-            algoritmo="SA",
-            iteraciones=datos.iteraciones,
-            semilla=datos.semilla,
-            fecha=fecha,
+    vehiculo_obj = problema.vehiculos[0]
+    conductor_obj = problema.conductores[0]
+
+    orden_a_optimizar = [p['id_pedido'] for p in pendientes]
+
+    ruta_nueva, motivo = problema.reoptimizar_secuencia(
+        vehiculo_obj,
+        conductor_obj,
+        orden_a_optimizar,
+        semilla=datos.semilla,
+        iteraciones=datos.iteraciones,
+    )
+
+    if motivo:
+        raise HTTPException(status_code=409, detail=motivo)
+
+    resumen = PR.persistir_reoptimizacion(
+        db, id_ruta, problema, ruta_nueva, fecha,
+        entregas_cerradas=cerrados,
+    )
+
+    orden_nuevo = resumen['orden_pedidos']
+
+    if datos.motivo:
+        advertencias.append(f"Motivo registrado: {datos.motivo}")
+
+    return ReoptimizacionRespuesta(
+        id_ruta=id_ruta,
+        vehiculo=vehiculo['placa'],
+        id_vehiculo=vehiculo['id_vehiculo'],
+        conductor=(
+            f"{conductor['nombre']} {conductor['apellido']}".strip()
         ),
-        db,
-        usuario,
+        id_conductor=conductor['id_conductor'],
+        pedidos=orden_nuevo,
+        orden_anterior=orden_anterior,
+        orden_nuevo=orden_nuevo,
+        orden_cambio=orden_nuevo != orden_anterior,
+        distancia_km=resumen['distancia_km'],
+        duracion_minutos=resumen['duracion_minutos'],
+        costo_total=resumen['costo_total'],
+        co2_kg=resumen['co2_kg'],
+        cumplimiento_ventanas_pct=resumen['cumplimiento_ventanas_pct'],
+        cambio=resumen['cambio'],
+        segundos_resueltos=round(_time.perf_counter() - t0, 3),
+        calles_reales=problema._usar_calles_reales,
+        advertencias=advertencias,
     )
 
 
@@ -718,6 +867,53 @@ def cambiar_estado_asignacion(
 # Entregas de una ruta
 # ---------------------------------------------------------------------------
 
+def _cerrar_ruta(db, id_ruta):
+    """Cierra la ruta y libera al conductor.
+
+    Se llama cuando todos los pedidos están entregados o fallados.
+    A partir de ahí la ruta es un registro histórico: no se puede
+    reoptimizar ni volver a planificar.
+
+    El conductor vuelve a DISPONIBLE y sus horas de conducción del
+    día se reinician, porque ya terminó su jornada. Sin esto el
+    conductor se queda marcado como en ruta para siempre y el
+    sistema no le vuelve a asignar nada.
+    """
+    db.execute(
+        text("""
+            UPDATE rutas SET estado = 'COMPLETADA'
+            WHERE id_ruta = :id_ruta
+        """),
+        {"id_ruta": id_ruta},
+    )
+
+    db.execute(
+        text("""
+            UPDATE asignaciones SET estado = 'COMPLETADA'
+            WHERE id_ruta = :id_ruta
+        """),
+        {"id_ruta": id_ruta},
+    )
+
+    db.execute(
+        text("""
+            UPDATE conductores SET
+                estado = 'DISPONIBLE',
+                horas_conduccion_acumuladas = 0
+            WHERE id_conductor IN (
+                SELECT id_conductor FROM asignaciones
+                WHERE id_ruta = :id_ruta
+            )
+        """),
+        {"id_ruta": id_ruta},
+    )
+
+    # El vehículo no cambia de estado al terminar la ruta: uno en
+    # MANTENIMIENTO sigue en mantenimiento y uno de BAJA sigue dado
+    # de baja. La ruta se cerró, el vehículo simplemente queda libre
+    # para la siguiente.
+
+
 @router.patch(
     "/{id_ruta}/pedidos/{id_pedido}/estado"
 )
@@ -726,28 +922,61 @@ def actualizar_entrega(
     id_pedido: int,
     datos: EntregaEstadoUpdate,
     db: Session = Depends(get_db),
-    usuario=Depends(require_permiso(RUTAS, ESCRITURA)),
+    usuario=Depends(require_permiso(RUTAS, LECTURA)),
 ):
-    """Actualiza el estado de entrega de un pedido dentro de la ruta."""
-    rel = db.execute(
+    """Actualiza el estado de entrega de un pedido dentro de la ruta.
+
+    El CONDUCTOR puede marcar sus propias entregas; require_entrega_de_ruta
+    verifica que la ruta esté asignada a él. ADMIN y OPERADOR pueden
+    sobre cualquier ruta.
+    """
+    require_entrega_de_ruta(usuario, db, id_ruta)
+
+    actual = db.execute(
         text("""
-            SELECT id_pedido FROM ruta_pedidos
+            SELECT estado_entrega FROM ruta_pedidos
             WHERE id_ruta = :id_ruta AND id_pedido = :id_pedido
         """),
         {"id_ruta": id_ruta, "id_pedido": id_pedido},
     ).scalar()
 
-    if not rel:
+    if actual is None:
         raise HTTPException(
             status_code=404,
             detail="El pedido no pertenece a esta ruta",
         )
 
+    # Una entrega ya cerrada es un hecho. No se puede volver atrás:
+    # deshacerla dejaría el historial de la ruta diciendo algo que ya
+    # no es cierto.
+    #
+    # La comprobación va ANTES de escribir nada, y en su propia
+    # transacción: si fallara después de haber escrito, el cambio
+    # quedaría a medias.
+    if (
+        actual in ('ENTREGADO', 'FALLIDO')
+        and datos.estado_entrega != actual
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"El pedido ya está {actual.lower()} y no se puede "
+                f"cambiar a {datos.estado_entrega.lower()}. Una "
+                f"entrega cerrada queda como registro."
+            ),
+        )
+
+    # Abrir una entrega pendiente cuenta como la hora en que se
+    # registra. Cerrarla conserva la que registró el conductor.
     db.execute(
         text("""
             UPDATE ruta_pedidos
             SET estado_entrega = :estado,
-                hora_llegada_real = COALESCE(:hora, CURRENT_TIMESTAMP)
+                hora_llegada_real = CASE
+                    WHEN :estado IN ('ENTREGADO', 'FALLIDO')
+                        THEN COALESCE(:hora, CURRENT_TIMESTAMP)
+                    ELSE NULL
+                END
             WHERE id_ruta = :id_ruta AND id_pedido = :id_pedido
         """),
         {
@@ -769,6 +998,45 @@ def actualizar_entrega(
         db.execute(
             text("UPDATE pedidos SET estado = :estado WHERE id_pedido = :id"),
             {"estado": nuevo_estado, "id": id_pedido},
+        )
+
+    cerrada = db.execute(
+        text("""
+            SELECT COUNT(*) FROM ruta_pedidos
+            WHERE id_ruta = :id_ruta
+              AND estado_entrega IN ('ENTREGADO', 'FALLIDO')
+        """),
+        {"id_ruta": id_ruta},
+    ).scalar()
+
+    total = db.execute(
+        text("SELECT COUNT(*) FROM ruta_pedidos WHERE id_ruta = :id_ruta"),
+        {"id_ruta": id_ruta},
+    ).scalar()
+
+    # Cuando ya no queda nada por entregar, la ruta se cierra y el
+    # conductor queda libre. Si no se hace aquí, el conductor se
+    # queda marcado como en ruta para siempre y no puede volver a
+    # tomar otra.
+    if total and cerrada >= total:
+        _cerrar_ruta(db, id_ruta)
+    else:
+        # Mientras quede algo, la ruta está en curso
+        db.execute(
+            text("""
+                UPDATE rutas SET estado = 'EN_CURSO'
+                WHERE id_ruta = :id_ruta
+                  AND estado IN ('PLANIFICADA', 'REOPTIMIZADA')
+            """),
+            {"id_ruta": id_ruta},
+        )
+
+        db.execute(
+            text("""
+                UPDATE asignaciones SET estado = 'EN_CURSO'
+                WHERE id_ruta = :id_ruta AND estado = 'ASIGNADA'
+            """),
+            {"id_ruta": id_ruta},
         )
 
     db.commit()

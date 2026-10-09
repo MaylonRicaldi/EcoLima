@@ -1,4 +1,4 @@
-import { getToken } from './auth'
+import { getToken, expirarSesion } from './auth'
 
 const API_URL = 'http://localhost:8000'
 
@@ -38,6 +38,14 @@ async function solicitud(endpoint, opciones = {}) {
   })
 
   const datos = await respuesta.json()
+
+  if (respuesta.status === 401) {
+    expirarSesion()
+
+    throw new Error(
+      'Su sesión expiró. Ingrese nuevamente.'
+    )
+  }
 
   if (!respuesta.ok) {
     throw new Error(extraerError(datos))

@@ -1,3 +1,5 @@
+import { expirarSesion } from './auth'
+
 const API_URL = 'http://localhost:8000'
 
 function obtenerHeaders() {
@@ -34,6 +36,14 @@ function extraerError(data) {
 
 async function procesarRespuesta(response) {
   const data = await response.json()
+
+  if (response.status === 401) {
+    expirarSesion()
+
+    throw new Error(
+      'Su sesión expiró. Ingrese nuevamente.'
+    )
+  }
 
   if (!response.ok) {
     throw new Error(extraerError(data))

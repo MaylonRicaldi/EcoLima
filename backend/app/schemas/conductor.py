@@ -13,7 +13,12 @@ ESTADOS_CONDUCTOR = {
 
 
 class ConductorBase(BaseModel):
-    id_usuario: int = Field(gt=0)
+    # El conductor es un registro de la operación. Puede no tener
+    # cuenta del sistema: si la tiene, es única.
+    id_usuario: int | None = Field(
+        default=None,
+        gt=0,
+    )
 
     dni: str = Field(
         min_length=8,

@@ -2,15 +2,13 @@ from datetime import date
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.core.licencias import DESCRIPCION
 
-CATEGORIAS_LICENCIA = {
-    "A-I",
-    "A-IIA",
-    "A-IIB",
-    "A-IIIA",
-    "A-IIIB",
-    "A-IIIC",
-}
+
+# Las categorías válidas vienen del módulo de reglas, que es donde
+# está la clasificación del MTC: clase A para autos, camionetas,
+# camiones y buses; clase B para motos y mototaxis.
+CATEGORIAS_LICENCIA = set(DESCRIPCION)
 
 
 ESTADOS_LICENCIA = {

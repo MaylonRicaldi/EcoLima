@@ -9,6 +9,7 @@ import {
   generarReporte,
   listarReportes,
 } from '../services/operacion'
+import Esqueleto from '../components/Esqueleto'
 
 
 function Tarjeta({ titulo, valor, unidad, detalle, tono = '' }) {
@@ -128,7 +129,7 @@ export default function Dashboard() {
     return (
       <main>
         <h1>Dashboard</h1>
-        <p>Cargando indicadores...</p>
+        <Esqueleto texto="indicadores" tipo="tarjetas" />
       </main>
     )
   }

@@ -3,6 +3,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db, require_permiso
+from app.core import licencias as LIC
 from app.core.permisos import (
     CONDUCTORES,
     LICENCIAS,
@@ -53,7 +54,7 @@ def listar_conductores(
                 c.estado,
                 u.email AS usuario_email
             FROM conductores c
-            INNER JOIN usuarios u
+            LEFT JOIN usuarios u
                 ON u.id_usuario = c.id_usuario
             ORDER BY c.id_conductor
         """)
@@ -85,7 +86,7 @@ def obtener_conductor(
                 c.estado,
                 u.email AS usuario_email
             FROM conductores c
-            INNER JOIN usuarios u
+            LEFT JOIN usuarios u
                 ON u.id_usuario = c.id_usuario
             WHERE c.id_conductor = :id_conductor
         """),
@@ -107,37 +108,38 @@ def crear_conductor(
     db: Session = Depends(get_db),
     usuario=Depends(require_permiso(CONDUCTORES, ESCRITURA)),
 ):
-    # Verificar que el usuario exista
-    usuario_db = db.execute(
-        text("""
-            SELECT id_usuario, email
-            FROM usuarios
-            WHERE id_usuario = :id_usuario
-        """),
-        {"id_usuario": datos.id_usuario},
-    ).mappings().first()
+    # La cuenta del sistema es opcional. Sólo se valida si se envía.
+    if datos.id_usuario is not None:
+        usuario_db = db.execute(
+            text("""
+                SELECT id_usuario, email
+                FROM usuarios
+                WHERE id_usuario = :id_usuario
+            """),
+            {"id_usuario": datos.id_usuario},
+        ).mappings().first()
 
-    if not usuario_db:
-        raise HTTPException(
-            status_code=404,
-            detail="El usuario indicado no existe",
-        )
+        if not usuario_db:
+            raise HTTPException(
+                status_code=404,
+                detail="El usuario indicado no existe",
+            )
 
-    # Verificar que el usuario no tenga ya un conductor asociado
-    conductor_usuario = db.execute(
-        text("""
-            SELECT id_conductor
-            FROM conductores
-            WHERE id_usuario = :id_usuario
-        """),
-        {"id_usuario": datos.id_usuario},
-    ).first()
+        # Verificar que el usuario no tenga ya un conductor asociado
+        conductor_usuario = db.execute(
+            text("""
+                SELECT id_conductor
+                FROM conductores
+                WHERE id_usuario = :id_usuario
+            """),
+            {"id_usuario": datos.id_usuario},
+        ).first()
 
-    if conductor_usuario:
-        raise HTTPException(
-            status_code=409,
-            detail="El usuario ya está asociado a un conductor",
-        )
+        if conductor_usuario:
+            raise HTTPException(
+                status_code=409,
+                detail="El usuario ya está asociado a un conductor",
+            )
 
     # Verificar DNI
     conductor_dni = db.execute(
@@ -232,41 +234,42 @@ def actualizar_conductor(
             detail="Conductor no encontrado",
         )
 
-    # Verificar usuario
-    usuario_db = db.execute(
-        text("""
-            SELECT id_usuario
-            FROM usuarios
-            WHERE id_usuario = :id_usuario
-        """),
-        {"id_usuario": datos.id_usuario},
-    ).first()
+    # Verificar usuario, si es que se envió alguno
+    if datos.id_usuario is not None:
+        usuario_db = db.execute(
+            text("""
+                SELECT id_usuario
+                FROM usuarios
+                WHERE id_usuario = :id_usuario
+            """),
+            {"id_usuario": datos.id_usuario},
+        ).first()
 
-    if not usuario_db:
-        raise HTTPException(
-            status_code=404,
-            detail="El usuario indicado no existe",
-        )
+        if not usuario_db:
+            raise HTTPException(
+                status_code=404,
+                detail="El usuario indicado no existe",
+            )
 
-    # Verificar que otro conductor no use el mismo usuario
-    usuario_asignado = db.execute(
-        text("""
-            SELECT id_conductor
-            FROM conductores
-            WHERE id_usuario = :id_usuario
-              AND id_conductor <> :id_conductor
-        """),
-        {
-            "id_usuario": datos.id_usuario,
-            "id_conductor": id_conductor,
-        },
-    ).first()
+        # Verificar que otro conductor no use el mismo usuario
+        usuario_asignado = db.execute(
+            text("""
+                SELECT id_conductor
+                FROM conductores
+                WHERE id_usuario = :id_usuario
+                  AND id_conductor <> :id_conductor
+            """),
+            {
+                "id_usuario": datos.id_usuario,
+                "id_conductor": id_conductor,
+            },
+        ).first()
 
-    if usuario_asignado:
-        raise HTTPException(
-            status_code=409,
-            detail="El usuario ya está asociado a otro conductor",
-        )
+        if usuario_asignado:
+            raise HTTPException(
+                status_code=409,
+                detail="El usuario ya está asociado a otro conductor",
+            )
 
     # Verificar DNI
     dni_asignado = db.execute(
@@ -366,6 +369,91 @@ def cambiar_estado_conductor(
 # ============================================================
 # LICENCIAS
 # ============================================================
+
+@router.get("/{id_conductor}/vehiculos-compatibles")
+def vehiculos_compatibles(
+    id_conductor: int,
+    db: Session = Depends(get_db),
+    usuario=Depends(require_permiso(CONDUCTORES, LECTURA)),
+):
+    """Qué vehículos de la flota puede manejar este conductor.
+
+    Se cruzan las licencias vigentes del conductor con el tipo de
+    cada vehículo de la flota, aplicando la jerarquía de categorías
+    del Reglamento de Licencias de Conducir (app/core/licencias.py).
+
+    Cada vehículo trae `habilitado` y, cuando no lo es, el motivo
+    en texto llano, que es el mismo que muestra la interfaz.
+    """
+    conductor = db.execute(
+        text("""
+            SELECT c.id_conductor, c.nombre, c.apellido
+            FROM conductores c
+            WHERE c.id_conductor = :id_conductor
+        """),
+        {"id_conductor": id_conductor},
+    ).mappings().first()
+
+    if not conductor:
+        raise HTTPException(
+            status_code=404,
+            detail="Conductor no encontrado",
+        )
+
+    # Sólo cuentan las licencias vigentes y no vencidas
+    categorias = [
+        f["categoria"]
+        for f in db.execute(
+            text("""
+                SELECT categoria
+                FROM licencias
+                WHERE id_conductor = :id_conductor
+                  AND estado = 'VIGENTE'
+                  AND fecha_vencimiento >= CURRENT_DATE
+            """),
+            {"id_conductor": id_conductor},
+        ).mappings()
+    ]
+
+    vehiculos = db.execute(
+        text("""
+            SELECT
+                v.id_vehiculo,
+                v.placa,
+                v.capacidad_kg,
+                v.capacidad_m3,
+                v.estado,
+                t.nombre AS tipo_vehiculo
+            FROM vehiculos v
+            INNER JOIN tipos_vehiculo t
+                ON t.id_tipo = v.id_tipo_vehiculo
+            ORDER BY t.nombre, v.placa
+        """)
+    ).mappings().all()
+
+    resultado = []
+
+    for vehiculo in vehiculos:
+        tipo = vehiculo["tipo_vehiculo"]
+        habilitado = LIC.habilita_alguno(categorias, tipo)
+
+        resultado.append({
+            **dict(vehiculo),
+            'habilitado': habilitado,
+            'motivo': '' if habilitado else LIC.motivo_bloqueo(
+                LIC.mejor_categoria(categorias) or '', tipo
+            ),
+        })
+
+    return {
+        'id_conductor': id_conductor,
+        'conductor': (
+            f"{conductor['nombre']} {conductor['apellido']}".strip()
+        ),
+        'categorias_licencia': categorias,
+        'vehiculos': resultado,
+    }
+
 
 @router.get("/{id_conductor}/licencias")
 def listar_licencias(

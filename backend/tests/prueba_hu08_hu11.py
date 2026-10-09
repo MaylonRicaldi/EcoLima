@@ -138,13 +138,47 @@ def main():
     r.check("POST reoptimizar", st == 200, f"status {st}")
 
     if st == 200:
-        r.check("reoptimización crea rutas nuevas",
-                len(reopt["rutas_creadas"]) >= 1,
-                str(len(reopt["rutas_creadas"])))
+        # La reoptimización NO crea rutas nuevas: corrige el
+        # recorrido de la que ya existe, conservando su vehículo y su
+        # conductor (HU-08).
+        r.check("reoptimización no crea rutas nuevas",
+                "rutas_creadas" not in reopt,
+                "la respuesta es del recorrido corregido")
+
+        r.check("conserva el vehículo",
+                reopt["id_vehiculo"] > 0,
+                reopt["vehiculo"])
+
+        r.check("conserva el conductor",
+                reopt["id_conductor"] > 0,
+                reopt["conductor"])
+
+        r.check("devuelve el orden anterior y el nuevo",
+                sorted(reopt["orden_anterior"])
+                == sorted(reopt["orden_nuevo"]),
+                f"{reopt['orden_anterior']} -> {reopt['orden_nuevo']}")
+
+        r.check("termina dentro de los 30 s de la RN-017",
+                reopt["segundos_resueltos"] < 30,
+                f"{reopt['segundos_resueltos']:.2f} s")
+
         st2, detalle = admin.get(f"/rutas/{id_ruta}")
-        r.check("ruta original queda REOPTIMIZADA",
+        r.check("la misma ruta queda REOPTIMIZADA",
                 detalle["estado"] == "REOPTIMIZADA",
                 detalle["estado"])
+
+        r.check("sigue siendo la MISMA ruta",
+                detalle["id_ruta"] == id_ruta,
+                f"ruta {detalle['id_ruta']}")
+
+        r.check("sigue teniendo su vehículo y conductor",
+                detalle["asignacion"] is not None
+                and detalle["asignacion"]["id_conductor"] == reopt["id_conductor"],
+                )
+
+        r.check("no pierde ninguna parada",
+                len(detalle["paradas"]) >= 3,
+                f"{len(detalle['paradas'])} paradas")
 
     # ---------- HU-09: dashboard ----------
     st, dash = admin.get("/dashboard")
@@ -243,22 +277,43 @@ def main():
         print(f"  {impacto['equivalencia']}")
 
     # ---------- permisos ----------
-    conductor = Api(token_de(2, "CONDUCTOR"))
-    st, _ = conductor.get("/dashboard")
-    r.check("CONDUCTOR NO ve dashboard global (403)", st == 403,
-            f"status {st}")
+    # El rol se relee de la base en cada petición, así que el token
+    # no sirve para impostar un rol: hace falta un usuario de verdad
+    # con ese rol. Si no hay ninguno, la prueba lo dice en vez de
+    # dar un OK falso.
+    id_conductor_usuario = db.execute(
+        text("""
+            SELECT c.id_usuario
+            FROM conductores c
+            INNER JOIN usuarios u ON u.id_usuario = c.id_usuario
+            INNER JOIN roles r ON r.id_rol = u.id_rol
+            WHERE r.nombre = 'CONDUCTOR'
+            LIMIT 1
+        """)
+    ).scalar()
 
-    st, _ = conductor.post("/incidentes", {
-        "tipo": "AVERIA",
-        "descripcion": "Falla en el vehiculo durante la ruta",
-        "latitud": -12.01, "longitud": -77.01,
-        "nivel": "MEDIO",
-    })
-    r.check("CONDUCTOR SÍ reporta incidentes (permitido)", st == 201,
-            f"status {st}")
+    if id_conductor_usuario is None:
+        print("\n  No hay usuario con rol CONDUCTOR: se omite la "
+              "comprobacion de permisos del conductor.")
+    else:
+        conductor = Api(token_de(id_conductor_usuario, "CONDUCTOR"))
 
-    st, _ = conductor.get("/reportes")
-    r.check("CONDUCTOR NO lee reportes (403)", st == 403, f"status {st}")
+        st, _ = conductor.get("/dashboard")
+        r.check("CONDUCTOR NO ve dashboard global (403)", st == 403,
+                f"status {st}")
+
+        st, _ = conductor.post("/incidentes", {
+            "tipo": "AVERIA",
+            "descripcion": "Falla en el vehiculo durante la ruta",
+            "latitud": -12.01, "longitud": -77.01,
+            "nivel": "MEDIO",
+        })
+        r.check("CONDUCTOR SÍ reporta incidentes (permitido)",
+                st == 201, f"status {st}")
+
+        st, _ = conductor.get("/reportes")
+        r.check("CONDUCTOR NO lee reportes (403)", st == 403,
+                f"status {st}")
 
     limpiar(db)
 

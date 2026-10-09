@@ -3,7 +3,11 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.db.database import SessionLocal
-from app.core.dependencies import id_cliente_de, require_permiso
+from app.core.dependencies import (
+    id_cliente_de,
+    id_pedidos_de_conductor,
+    require_permiso,
+)
 from app.core.permisos import (
     PEDIDOS,
     ESCRITURA,
@@ -35,8 +39,16 @@ def listar_pedidos(
     db: Session = Depends(get_db),
     usuario_actual=Depends(require_permiso(PEDIDOS, LECTURA)),
 ):
-    # El rol CLIENTE sólo ve los pedidos de su propia cuenta.
+    # Filtro por fila según el rol:
+    #  CLIENTE   -> sólo los pedidos de su propia cuenta
+    #  CONDUCTOR -> sólo los pedidos de las rutas que tiene asignadas
     cliente_id = id_cliente_de(usuario_actual, db)
+    pedidos_conductor = id_pedidos_de_conductor(usuario_actual, db)
+
+    ids = None
+
+    if pedidos_conductor is not None:
+        ids = sorted(pedidos_conductor)
 
     resultado = db.execute(
         text("""
@@ -56,9 +68,17 @@ def listar_pedidos(
                 p.fecha_registro
             FROM pedidos p
             WHERE (:id_cliente IS NULL OR p.id_cliente = :id_cliente)
+              AND (
+                :es_conductor IS FALSE
+                OR p.id_pedido = ANY(:ids)
+              )
             ORDER BY p.id_pedido
         """),
-        {"id_cliente": cliente_id},
+        {
+            "id_cliente": cliente_id,
+            "es_conductor": ids is not None,
+            "ids": ids if ids else [],
+        },
     )
 
     return [dict(row._mapping) for row in resultado]
@@ -89,10 +109,21 @@ def obtener_pedido(
             FROM pedidos p
             WHERE p.id_pedido = :id_pedido
               AND (:id_cliente IS NULL OR p.id_cliente = :id_cliente)
+              AND (
+                :es_conductor IS FALSE
+                OR p.id_pedido = ANY(:ids)
+              )
         """),
         {
             "id_pedido": id_pedido,
             "id_cliente": id_cliente_de(usuario_actual, db),
+            "es_conductor": (
+                id_pedidos_de_conductor(usuario_actual, db)
+                is not None
+            ),
+            "ids": (
+                sorted(id_pedidos_de_conductor(usuario_actual, db) or [])
+            ),
         },
     ).mappings().first()
 

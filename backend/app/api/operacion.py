@@ -387,7 +387,7 @@ def evaluar_reoptimizacion(
 
     if express_pendiente:
         motivos.append(
-            f"{express_pendiente} pedido(s) EXPRESS sin planificar (RN-017a)"
+            f"{express_pendiente} pedido(s) EXPRESS sin planificar"
         )
 
     return {

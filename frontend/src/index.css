@@ -34,6 +34,13 @@
   --sombra-suave: 0 0.625rem 1.625rem -1rem rgba(9, 62, 74, 0.45);
   --brillo: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 
+  /* Movimiento: una sola curva y una sola duración para que todo el
+     sistema se sienta igual al interactuar. */
+  --ease: cubic-bezier(0.34, 1.32, 0.42, 1);
+  --ease-fuerte: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur: 0.22s;
+  --dur-lenta: 0.5s;
+
   /* Tipografía */
   --sans:
     'Segoe UI', system-ui, -apple-system, 'Inter', Roboto, Helvetica, Arial,
@@ -160,6 +167,14 @@ body::after {
   body::before {
     animation: none;
   }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* --- Layout raíz --- */
@@ -214,6 +229,20 @@ h2::before {
   border-radius: 99px;
   background: linear-gradient(180deg, var(--verde), var(--aqua));
   box-shadow: 0 0 0.75rem rgba(16, 185, 129, 0.5);
+  animation: latido 3.2s var(--ease-fuerte) infinite;
+}
+
+@keyframes latido {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+
+  50% {
+    opacity: 0.72;
+    transform: scaleY(0.86);
+  }
 }
 
 h3 {
@@ -260,6 +289,29 @@ section {
   display: flex;
   flex-direction: column;
   gap: 1.125rem;
+  animation: aparecer var(--dur-lenta) var(--ease-fuerte) both;
+  transition:
+    box-shadow var(--dur) var(--ease-fuerte),
+    border-color var(--dur) var(--ease-fuerte);
+}
+
+section:hover {
+  border-color: rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 1.75rem 3.5rem -1.75rem rgba(9, 62, 74, 0.55),
+    var(--brillo);
+}
+
+@keyframes aparecer {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Cabecera de página (Pedidos) */
@@ -309,30 +361,41 @@ textarea {
   background: var(--vidrio-alto);
   box-shadow: inset 0 1px 3px rgba(9, 62, 74, 0.07);
   transition:
-    box-shadow 0.2s ease,
-    border-color 0.2s ease,
-    background 0.2s ease;
+    box-shadow var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    background var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
 }
 
 input::placeholder {
   color: var(--texto-tenue);
 }
 
-input:hover,
-select:hover,
-textarea:hover {
+input:hover:not(:disabled),
+select:hover:not(:disabled),
+textarea:hover:not(:disabled) {
   border-color: rgba(16, 185, 129, 0.45);
+  transform: translateY(-0.0625rem);
 }
 
 input:focus,
 select:focus,
 textarea:focus {
   outline: none;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.92);
   border-color: rgba(16, 185, 129, 0.7);
+  transform: translateY(-0.0625rem);
   box-shadow:
     0 0 0 0.25rem rgba(16, 185, 129, 0.18),
     0 0.5rem 1.125rem -0.625rem rgba(16, 185, 129, 0.5);
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: var(--vidrio-bajo);
 }
 
 select {
@@ -369,30 +432,88 @@ button {
   color: var(--texto);
   background: var(--vidrio-alto);
   box-shadow: var(--sombra-suave), var(--brillo);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  touch-action: manipulation;
   transition:
-    transform 0.18s ease,
-    box-shadow 0.18s ease,
-    background 0.18s ease;
+    transform var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease-fuerte),
+    background-color var(--dur) var(--ease-fuerte),
+    border-color var(--dur) var(--ease-fuerte),
+    filter var(--dur) var(--ease-fuerte);
+}
+
+/* Onda de presión: se expande desde el punto del clic.
+   Es una capa ::after, así que no necesita JavaScript ni eventos. */
+button::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: -1;
+  width: 14rem;
+  height: 14rem;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.6),
+    rgba(255, 255, 255, 0) 70%
+  );
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+}
+
+button:active:not(:disabled)::after {
+  animation: onda 0.5s var(--ease-fuerte);
+}
+
+@keyframes onda {
+  from {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0.5;
+  }
+
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
+  }
 }
 
 button:hover:not(:disabled) {
-  transform: translateY(-0.125rem);
+  transform: translateY(-0.1875rem) scale(1.015);
   background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 1rem 1.875rem -1rem rgba(9, 62, 74, 0.55), var(--brillo);
+  box-shadow:
+    0 1rem 1.875rem -1rem rgba(9, 62, 74, 0.55),
+    var(--brillo);
 }
 
+/* Al presionar el botón "se hunde": da la sensación de que
+   responde al dedo y no de que flotaba sobre la tarjeta. */
 button:active:not(:disabled) {
-  transform: translateY(0);
+  transform: translateY(0) scale(0.965);
+  box-shadow:
+    inset 0 0.1875rem 0.5rem rgba(9, 62, 74, 0.18),
+    var(--brillo);
+  transition-duration: 0.07s;
 }
 
 button:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
+  filter: saturate(0.35);
+  box-shadow: none;
 }
 
 :focus-visible {
   outline: 2px solid var(--verde);
   outline-offset: 3px;
+  transition: outline-offset var(--dur) var(--ease);
+}
+
+:focus-visible:not(button) {
+  border-radius: 0.75rem;
 }
 
 ::selection {

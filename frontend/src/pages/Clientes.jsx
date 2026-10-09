@@ -7,6 +7,10 @@ import {
   cambiarEstadoCliente,
 } from '../services/clientes'
 
+import MapaUbicador from '../components/MapaUbicador'
+import Modal from '../components/Modal'
+import Esqueleto from '../components/Esqueleto'
+
 
 const formularioInicial = {
   nombre: '',
@@ -21,10 +25,43 @@ const formularioInicial = {
   horario_cierre: '',
   restricciones_acceso: '',
   estado: 'ACTIVO',
+  tipo_comercio: 'COMERCIO_MINORISTA',
 }
+
+/* Tipo de comercio del cliente.
+   La tabla clientes no tiene columna para esto y el proyecto
+   decidió no tocar el esquema, así que el dato vive sólo en esta
+   pantalla: sirve para clasificar y leer de un vistazo, y se
+   reinicia al recargar. */
+const TIPOS_COMERCIO = [
+  {
+    valor: 'COMERCIO_MINORISTA',
+    texto: 'Pequeño comerciante',
+    ayuda: 'Atiende en su casa o en un local pequeño.',
+  },
+  {
+    valor: 'BODEGA',
+    texto: 'Bodega',
+    ayuda: 'Abre temprano y suele tener poco personal.',
+  },
+  {
+    valor: 'MERCADO_LOCAL',
+    texto: 'Mercado local',
+    ayuda: 'Puesto o local dentro de un mercado.',
+  },
+]
 
 
 function convertirDatosFormulario(formulario) {
+  if (
+    formulario.latitud === '' ||
+    formulario.longitud === ''
+  ) {
+    throw new Error(
+      'Elija la ubicación del cliente en el mapa'
+    )
+  }
+
   return {
     nombre: formulario.nombre,
     documento: formulario.documento || null,
@@ -51,6 +88,15 @@ export default function Clientes() {
     useState(formularioInicial)
   const [clienteEditando, setClienteEditando] =
     useState(null)
+
+  /* La ventana de registro arranca cerrada: el listado es lo que
+     se ve al entrar al módulo. */
+  const [modalAbierto, setModalAbierto] = useState(false)
+
+  /* Tipo de comercio elegido por cliente id.
+     No va al backend: la tabla clientes no tiene esa columna, así
+     que se mantiene sólo mientras la pantalla esté abierta. */
+  const [tiposElegidos, setTiposElegidos] = useState({})
 
   const [cargando, setCargando] = useState(true)
   const [guardando, setGuardando] = useState(false)
@@ -90,9 +136,39 @@ export default function Clientes() {
   }
 
 
+  function manejarUbicacion(coordenadas) {
+    setFormulario((actual) => ({
+      ...actual,
+      latitud: String(coordenadas.latitud),
+      longitud: String(coordenadas.longitud),
+      /* Elegir una dirección del buscador rellena el texto: es una
+         acción deliberada. Mover el marcador llega sin etiqueta y
+         no toca lo que el usuario escribió. */
+      direccion: coordenadas.etiqueta
+        ? coordenadas.etiqueta
+        : actual.direccion,
+    }))
+  }
+
+
   function limpiarFormulario() {
     setFormulario(formularioInicial)
     setClienteEditando(null)
+  }
+
+
+  function abrirRegistro() {
+    setMensaje('')
+    setError('')
+    setClienteEditando(null)
+    setFormulario(formularioInicial)
+    setModalAbierto(true)
+  }
+
+
+  function cerrarFormulario() {
+    limpiarFormulario()
+    setModalAbierto(false)
   }
 
 
@@ -117,10 +193,8 @@ export default function Clientes() {
       estado: cliente.estado,
     })
 
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth',
-    })
+    setError('')
+    setModalAbierto(true)
   }
 
 
@@ -142,11 +216,23 @@ export default function Clientes() {
           datos
         )
 
+        /* Se recuerda el tipo elegido para que la fila siga
+           mostrando la clasificación. */
+        setTiposElegidos((actual) => ({
+          ...actual,
+          [clienteEditando]: formulario.tipo_comercio,
+        }))
+
         setMensaje(
           'Cliente actualizado correctamente.'
         )
       } else {
-        await crearCliente(datos)
+        const creado = await crearCliente(datos)
+
+        setTiposElegidos((actual) => ({
+          ...actual,
+          [creado?.id_cliente]: formulario.tipo_comercio,
+        }))
 
         setMensaje(
           'Cliente registrado correctamente.'
@@ -189,7 +275,23 @@ export default function Clientes() {
   return (
     <main>
 
-      <h1>Gestión de clientes</h1>
+      <div className="pagina-header">
+        <div>
+          <h1>Gestión de clientes</h1>
+
+          <p>
+            Registro y administración de clientes y sus
+            ubicaciones de entrega.
+          </p>
+        </div>
+
+        <button
+          className="boton-principal"
+          onClick={abrirRegistro}
+        >
+          Registrar cliente
+        </button>
+      </div>
 
       {error && (
         <div className="mensaje error">
@@ -204,13 +306,22 @@ export default function Clientes() {
       )}
 
 
-      <section className="formulario-cliente">
-
-        <h2>
-          {clienteEditando
+      {/* El registro va en una ventana propia para que el listado
+          de abajo no se desplace ni se mezcle con el formulario. */}
+      <Modal
+        abierto={modalAbierto}
+        onCerrar={cerrarFormulario}
+        ancho="grande"
+        titulo={
+          clienteEditando
             ? 'Editar cliente'
-            : 'Registrar cliente'}
-        </h2>
+            : 'Registrar cliente'
+        }
+        descripcion={
+          'La ubicación se elige en el mapa. Arrastre el marcador ' +
+          'para ajustar el punto exacto de la entrega.'
+        }
+      >
 
         <form onSubmit={manejarSubmit}>
 
@@ -300,36 +411,69 @@ export default function Clientes() {
             </label>
 
 
-            <label>
-              Latitud
+            <div className="campo">
+              <label htmlFor="tipo_comercio">
+                Tipo de comercio
+              </label>
 
+              <select
+                id="tipo_comercio"
+                name="tipo_comercio"
+                value={formulario.tipo_comercio}
+                onChange={manejarCambio}
+              >
+                {TIPOS_COMERCIO.map((tipo) => (
+                  <option
+                    key={tipo.valor}
+                    value={tipo.valor}
+                  >
+                    {tipo.texto}
+                  </option>
+                ))}
+              </select>
+
+              <small className="ayuda-campo">
+                {
+                  TIPOS_COMERCIO.find(
+                    (t) => t.valor === formulario.tipo_comercio
+                  )?.ayuda
+                }
+              </small>
+            </div>
+
+
+            <div className="campo campo-completo">
+              <label className="etiqueta-mapa">
+                Ubicación de la entrega
+              </label>
+
+              <MapaUbicador
+                latitud={formulario.latitud}
+                longitud={formulario.longitud}
+                onCambio={manejarUbicacion}
+              />
+
+              {/* El backend exige estos dos campos; el mapa los
+                  escribe y se validan aquí antes de enviar. */}
               <input
-                type="number"
-                step="0.0000001"
+                type="hidden"
                 name="latitud"
                 value={formulario.latitud}
-                onChange={manejarCambio}
-                min="-13"
-                max="-11"
-                required
               />
-            </label>
-
-
-            <label>
-              Longitud
 
               <input
-                type="number"
-                step="0.0000001"
+                type="hidden"
                 name="longitud"
                 value={formulario.longitud}
-                onChange={manejarCambio}
-                min="-78"
-                max="-76"
-                required
               />
-            </label>
+
+              {!formulario.latitud && (
+                <p className="aviso-validacion">
+                  Elija la ubicación en el mapa para
+                  registrar el cliente.
+                </p>
+              )}
+            </div>
 
 
             <label>
@@ -406,20 +550,18 @@ export default function Clientes() {
                   : 'Registrar cliente'}
             </button>
 
-            {clienteEditando && (
-              <button
-                type="button"
-                onClick={limpiarFormulario}
-              >
-                Cancelar
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={cerrarFormulario}
+            >
+              Cerrar
+            </button>
 
           </div>
 
         </form>
 
-      </section>
+      </Modal>
 
 
       <section className="lista-clientes">
@@ -427,7 +569,7 @@ export default function Clientes() {
         <h2>Clientes registrados</h2>
 
         {cargando ? (
-          <p>Cargando clientes...</p>
+          <Esqueleto texto="clientes" tipo="filas" />
         ) : clientes.length === 0 ? (
           <p>No hay clientes registrados.</p>
         ) : (
@@ -439,6 +581,7 @@ export default function Clientes() {
                 <tr>
                   <th>ID</th>
                   <th>Nombre</th>
+                  <th>Comercio</th>
                   <th>Documento</th>
                   <th>Teléfono</th>
                   <th>Dirección</th>
@@ -460,6 +603,25 @@ export default function Clientes() {
 
                     <td>
                       {cliente.nombre}
+                    </td>
+
+                    {/* El tipo de comercio no se guarda en la
+                        base: se muestra sólo para lo que se acaba
+                        de escribir en el formulario. */}
+                    <td>
+                      {tiposElegidos[cliente.id_cliente] ? (
+                        <span className="chip-tipo-comercio">
+                          {
+                            TIPOS_COMERCIO.find(
+                              (t) =>
+                                t.valor ===
+                                tiposElegidos[cliente.id_cliente]
+                            )?.texto
+                          }
+                        </span>
+                      ) : (
+                        <span className="tipo-no-elegido">—</span>
+                      )}
                     </td>
 
                     <td>

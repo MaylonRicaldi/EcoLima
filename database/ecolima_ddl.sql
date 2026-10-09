@@ -101,9 +101,11 @@ CREATE INDEX idx_vehiculos_combustible ON vehiculos(tipo_combustible);
 -- =========================
 -- 06. CONDUCTORES
 -- =========================
+-- El conductor es un registro de la operación y puede no tener
+-- cuenta del sistema: id_usuario es opcional y único cuando existe.
 CREATE TABLE conductores (
     id_conductor SERIAL PRIMARY KEY,
-    id_usuario INT NOT NULL UNIQUE REFERENCES usuarios(id_usuario) ON DELETE RESTRICT,
+    id_usuario INT UNIQUE REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
     dni VARCHAR(15) NOT NULL UNIQUE CHECK (dni ~ '^[0-9]{8}$'),
     nombre VARCHAR(100) NOT NULL,
     apellido VARCHAR(100) NOT NULL,
@@ -128,7 +130,7 @@ CREATE TABLE licencias (
     id_licencia SERIAL PRIMARY KEY,
     id_conductor INT NOT NULL REFERENCES conductores(id_conductor) ON DELETE CASCADE,
     numero VARCHAR(30) NOT NULL,
-    categoria VARCHAR(20) NOT NULL CHECK (categoria IN ('A-I','A-IIA','A-IIB','A-IIIA','A-IIIB','A-IIIC')),
+    categoria VARCHAR(20) NOT NULL CHECK (categoria IN ('A-I','A-IIA','A-IIB','A-IIIA','A-IIIB','A-IIIC','B-I','B-IIA','B-IIB','B-IIC')),
     fecha_emision DATE NOT NULL,
     fecha_vencimiento DATE NOT NULL CHECK (fecha_vencimiento > fecha_emision),
     estado VARCHAR(20) NOT NULL DEFAULT 'VIGENTE' CHECK (estado IN ('VIGENTE','VENCIDA','SUSPENDIDA'))

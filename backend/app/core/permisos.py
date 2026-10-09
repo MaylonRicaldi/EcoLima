@@ -78,9 +78,17 @@ PERMISOS_OPERADOR = (
 # --------------------------------------------------------------------------
 # CONDUCTOR: sólo la información relacionada con sus rutas, asignaciones,
 # paradas y estado de sus entregas.
+#
+# PEDIDOS es de sólo lectura y además se filtra por fila: el conductor
+# únicamente ve los pedidos de las rutas que tiene asignadas
+# (conductor -> asignaciones -> rutas -> ruta_pedidos -> pedidos).
+# El filtrado lo aplica app/core/dependencies.id_pedidos_de_conductor.
 # --------------------------------------------------------------------------
 PERMISOS_CONDUCTOR = (
-    _lectura(VEHICULOS, RUTAS, ASIGNACIONES, TRAFICO, INCIDENTES)
+    _lectura(
+        VEHICULOS, RUTAS, ASIGNACIONES, TRAFICO,
+        INCIDENTES, PEDIDOS,
+    )
     | _escritura(INCIDENTES)
 )
 

@@ -1,0 +1,443 @@
+/* ============================================================
+   Barra lateral de módulos, plegable.
+
+   Plegada deja una franja de iconos para no robarle ancho a la
+   tabla; desplegada muestra el nombre completo de cada módulo.
+   ============================================================ */
+
+.app-shell {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 1.25rem;
+  width: 100%;
+}
+
+/* ---------------- La barra ---------------- */
+
+.barra-lateral {
+  position: sticky;
+  top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  width: 17.5rem;
+  max-height: calc(100svh - 2.5rem);
+  padding: 0.875rem;
+  border-radius: 1.375rem;
+  border: 1px solid var(--borde);
+  background: var(--vidrio-alto);
+  -webkit-backdrop-filter: blur(1.375rem) saturate(170%);
+  backdrop-filter: blur(1.375rem) saturate(170%);
+  box-shadow: var(--sombra), var(--brillo);
+  animation: aparecer var(--dur-lenta) var(--ease-fuerte) both;
+  transition:
+    width var(--dur-lenta) var(--ease-fuerte),
+    padding var(--dur-lenta) var(--ease-fuerte);
+  overflow: hidden;
+}
+
+.barra-lateral.plegada {
+  width: 4.5rem;
+}
+
+/* El contenido se oculta con una animación de ancho en vez de
+   display:none, para que el plegado se vea continuo. */
+.barra-lateral-contenido {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  min-width: 15.75rem;
+  opacity: 1;
+  transition: opacity var(--dur) var(--ease-fuerte);
+}
+
+.barra-lateral.plegada .barra-lateral-contenido {
+  opacity: 0;
+  pointer-events: none;
+  /* Deja que se deslice antes de desaparecer */
+  transform: translateX(-0.5rem);
+}
+
+.barra-lateral-contenido {
+  transition:
+    opacity var(--dur) var(--ease-fuerte),
+    transform var(--dur) var(--ease-fuerte);
+}
+
+/* ---------------- Marca ---------------- */
+
+.barra-marca {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--linea);
+}
+
+.barra-marca-logo {
+  flex-shrink: 0;
+  width: 2.375rem;
+  height: 2.375rem;
+  border-radius: 0.6875rem;
+  background: linear-gradient(135deg, var(--verde-fuerte), var(--aqua));
+  box-shadow: 0 0.5rem 1.125rem -0.5rem rgba(5, 150, 105, 0.7);
+  display: grid;
+  place-items: center;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.barra-marca-texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.barra-marca-nombre {
+  font-size: 0.95rem;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  color: var(--texto);
+  white-space: nowrap;
+}
+
+.barra-marca-rol {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--verde-fuerte);
+  white-space: nowrap;
+}
+
+/* ---------------- Botón de plegar ---------------- */
+
+.barra-plegar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.4375rem 0.625rem;
+  font-size: 0.8rem;
+  border-radius: 0.6875rem;
+  color: var(--texto-medio);
+  background: var(--vidrio-bajo);
+}
+
+.barra-plegar-flecha {
+  flex-shrink: 0;
+  display: inline-block;
+  transition: transform var(--dur-lenta) var(--ease);
+}
+
+.barra-lateral.plegada .barra-plegar-flecha {
+  transform: rotate(180deg);
+}
+
+.barra-lateral.plegada .barra-plegar {
+  padding: 0.4375rem;
+  justify-content: center;
+}
+
+/* En plegada sólo cabe el icono */
+.barra-lateral.plegada .barra-plegar-texto {
+  display: none;
+}
+
+/* ---------------- Lista de módulos ---------------- */
+
+.barra-modulos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1875rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.barra-modulo a {
+  display: flex;
+  align-items: center;
+  gap: 0.6875rem;
+  padding: 0.5625rem 0.6875rem;
+  border-radius: 0.75rem;
+  border: 1px solid transparent;
+  color: var(--texto-medio);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color var(--dur) var(--ease-fuerte),
+    border-color var(--dur) var(--ease-fuerte),
+    color var(--dur) var(--ease-fuerte),
+    transform var(--dur) var(--ease);
+}
+
+.barra-modulo a::before {
+  content: none;
+}
+
+.barra-modulo a:hover {
+  transform: translateX(0.1875rem);
+  background: rgba(255, 255, 255, 0.65);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: var(--texto);
+}
+
+.barra-modulo a.activo {
+  background: linear-gradient(
+    120deg,
+    rgba(16, 185, 129, 0.18),
+    rgba(34, 211, 238, 0.14)
+  );
+  border-color: rgba(16, 185, 129, 0.45);
+  color: var(--verde-fuerte);
+  font-weight: 700;
+  box-shadow: inset 0 0 0 0.0625rem rgba(255, 255, 255, 0.6);
+}
+
+.barra-modulo-icono {
+  flex-shrink: 0;
+  width: 1.5rem;
+  text-align: center;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.barra-modulo-texto {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Plegada se ve sólo el icono, centrado */
+.barra-lateral.plegada .barra-modulo a {
+  justify-content: center;
+  padding: 0.5625rem 0;
+}
+
+.barra-lateral.plegada .barra-modulo-texto {
+  display: none;
+}
+
+/* ---------------- Pie: usuario y salida ---------------- */
+
+.barra-pie {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--linea);
+}
+
+.barra-usuario {
+  display: flex;
+  align-items: center;
+  gap: 0.5625rem;
+  min-width: 0;
+}
+
+.barra-avatar {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.78rem;
+  font-weight: 750;
+  color: #fff;
+  background: linear-gradient(135deg, var(--verde-fuerte), var(--aqua));
+  box-shadow: 0 0.375rem 0.875rem -0.375rem rgba(5, 150, 105, 0.7);
+  text-transform: uppercase;
+}
+
+.barra-usuario-datos {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.barra-usuario-nombre {
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: var(--texto);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.barra-usuario-correo {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--texto-tenue);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.barra-lateral.plegada .barra-usuario-datos,
+.barra-lateral.plegada .barra-salir-texto {
+  display: none;
+}
+
+.barra-lateral.plegada .barra-usuario {
+  justify-content: center;
+}
+
+.barra-salir {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  font-size: 0.8rem;
+  border-radius: 0.6875rem;
+  color: #be123c;
+  background: rgba(255, 255, 255, 0.55);
+  border-color: rgba(251, 113, 133, 0.4);
+}
+
+.barra-salir:hover:not(:disabled) {
+  background: rgba(255, 228, 230, 0.92);
+  border-color: rgba(251, 113, 133, 0.75);
+}
+
+/* ---------------- Zona principal ---------------- */
+
+.app-principal {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+  flex: 1;
+}
+
+/* ---------------- Barra superior del contenido ---------------- */
+
+.barra-contenido {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.875rem;
+  border: 1px solid var(--borde);
+  background: var(--vidrio-alto);
+  -webkit-backdrop-filter: blur(1.25rem) saturate(170%);
+  backdrop-filter: blur(1.25rem) saturate(170%);
+  box-shadow: var(--sombra-suave), var(--brillo);
+  animation: aparecer var(--dur-lenta) var(--ease-fuerte) both;
+}
+
+.barra-contenido-ruta {
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: var(--texto-medio);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.barra-contenido-acciones {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.barra-contenido-acciones button {
+  padding: 0.4375rem 0.8125rem;
+  font-size: 0.8rem;
+  border-radius: 0.6875rem;
+}
+
+.barra-contenido-acciones button:hover {
+  transform: none;
+}
+
+/* Mostrar la barra en móvil */
+.barra-mostrar {
+  display: none;
+}
+
+/* ---------------- Móvil ---------------- */
+
+@media (max-width: 60rem) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  /* En pantallas chicas la barra deja de ocupar columna y pasa a
+     ser un cajón que se desliza sobre el contenido. */
+  .barra-lateral {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 120;
+    height: 100svh;
+    max-height: 100svh;
+    width: 17.5rem;
+    border-radius: 0 1.375rem 1.375rem 0;
+    transform: translateX(0);
+    transition: transform var(--dur-lenta) var(--ease-fuerte);
+  }
+
+  .barra-lateral.plegada {
+    width: 17.5rem;
+    transform: translateX(-100%);
+    box-shadow: none;
+  }
+
+  /* Plegada en móvil sigue mostrando los nombres: sólo se esconde */
+  .barra-lateral.plegada .barra-lateral-contenido {
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+  }
+
+  .barra-lateral.plegada .barra-modulo a,
+  .barra-lateral.plegada .barra-usuario,
+  .barra-lateral.plegada .barra-salir {
+    justify-content: flex-start;
+  }
+
+  .barra-lateral.plegada .barra-modulo-texto,
+  .barra-lateral.plegada .barra-usuario-datos,
+  .barra-lateral.plegada .barra-salir-texto,
+  .barra-lateral.plegada .barra-plegar-texto {
+    display: revert;
+  }
+
+  .barra-lateral.plegada .barra-plegar {
+    padding: 0.4375rem 0.625rem;
+  }
+
+  .barra-lateral.plegada .barra-plegar-flecha {
+    transform: none;
+  }
+
+  .barra-mostrar {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  /* Velo oscuro al abrir el cajón */
+  .barra-velo {
+    position: fixed;
+    inset: 0;
+    z-index: 110;
+    background: rgba(9, 62, 74, 0.4);
+    -webkit-backdrop-filter: blur(0.375rem);
+    backdrop-filter: blur(0.375rem);
+    animation: modal-entra-fondo 0.25s var(--ease-fuerte) both;
+  }
+}

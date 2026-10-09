@@ -51,3 +51,21 @@ export function getUsuario() {
 export function estaAutenticado() {
   return Boolean(getToken())
 }
+
+
+/**
+ * Cierra la sesión cuando el backend responde 401.
+ *
+ * Ocurre cuando el JWT expira (30 min) o el usuario fue desactivado.
+ * Sin esto la aplicación queda con errores en pantalla sin forma de
+ * recuperarse, porque ninguna vista vuelve a pedir credenciales.
+ */
+export function expirarSesion() {
+  logout()
+
+  if (
+    !window.location.search.includes('sesion=expirada')
+  ) {
+    window.location.assign('/?sesion=expirada')
+  }
+}

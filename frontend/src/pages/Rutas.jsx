@@ -12,11 +12,25 @@ import {
   listarTrafico,
   listarIncidentes,
 } from '../services/operacion'
+import Esqueleto from '../components/Esqueleto'
 
 
 export default function Rutas() {
   const [rutas, setRutas] = useState([])
   const [rutaActual, setRutaActual] = useState(null)
+
+  // Una ruta cerrada es un registro histórico: no se le puede
+  // corregir el recorrido ni cambiar el estado de sus entregas.
+  const rutaCerrada =
+    rutaActual?.estado === 'COMPLETADA' ||
+    rutaActual?.estado === 'CANCELADA'
+
+  // Entregas ya cerradas: tampoco se pueden tocar
+  const entregasCerradas = (rutaActual?.pedidos ?? []).filter(
+    (p) =>
+      p.estado_entrega === 'ENTREGADO' ||
+      p.estado_entrega === 'FALLIDO'
+  )
 
   const [trafico, setTrafico] = useState([])
   const [incidentes, setIncidentes] = useState([])
@@ -146,18 +160,50 @@ export default function Rutas() {
 
       const data = await reoptimizarRuta(
         rutaActual.id_ruta,
-        { iteraciones: 200 }
+        { iteraciones: 400 }
       )
 
+      // La reoptimización conserva el vehículo y el conductor: solo
+      // corrige el orden de visita. El mensaje lo deja claro, porque
+      // antes era fácil confundirla con una replanificación completa.
+      const antes = data.orden_anterior.join(' → ')
+      const despues = data.orden_nuevo.join(' → ')
 
-      setMensaje(
-        `Ruta ${rutaActual.id_ruta} reoptimizada: ` +
-          `${data.rutas_creadas.length} ruta(s) nueva(s) en ` +
-          `${data.segundos_resueltos}s.`
+      let texto = (
+        `Recorrido corregido en ${data.segundos_resueltos}s. ` +
+        `Se mantienen el vehículo ${data.vehiculo} y el conductor ` +
+        `${data.conductor}.`
       )
+
+      if (data.orden_cambio) {
+        texto += ` Nuevo orden: ${despues} (antes ${antes}).`
+      } else {
+        texto +=
+          ' El orden que ya tenía era el mejor con el tráfico de ahora.'
+      }
+
+      const km = data.cambio?.distancia_km
+      const min = data.cambio?.duracion_minutos
+
+      if (typeof km === 'number' && Math.abs(km) >= 0.01) {
+        texto +=
+          ` Distancia ${km > 0 ? '+' : ''}${km.toFixed(2)} km.`
+      }
+
+      if (typeof min === 'number' && Math.abs(min) >= 0.5) {
+        texto +=
+          ` Tiempo ${min > 0 ? '+' : ''}${min.toFixed(0)} min.`
+      }
+
+      setMensaje(texto)
+
+      // Las advertencias van como avisos, no como errores: son
+      // circunstancias que debe conocer, no fallos.
+      data.advertencias?.forEach((a) => setError(a))
 
       await cargarRutas()
       await cargarOperacion()
+      await seleccionarRuta(data.id_ruta)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -250,7 +296,7 @@ export default function Rutas() {
         <h2>Rutas generadas</h2>
 
         {cargando ? (
-          <p>Cargando rutas...</p>
+          <Esqueleto texto="rutas" tipo="filas" />
         ) : rutas.length === 0 ? (
           <p>
             No hay rutas generadas. Use
@@ -381,21 +427,48 @@ export default function Rutas() {
               </span>
             </div>
 
-            <div className="form-actions">
-              <button
-                type="button"
-                onClick={reoptimizar}
-                disabled={optimizando}
-              >
-                Reoptimizar
-              </button>
+            <p className="ayuda-accion">
+              Corregir el recorrido vuelve a calcular el orden de
+              visita con el tráfico de ahora. No cambia el vehículo ni
+              el conductor, ni coge o suelta pedidos: es la misma ruta
+              con las mismas paradas, mejor ordenadas. Las entregas ya
+              cerradas se conservan como registro y no se tocan.
+            </p>
 
-              <button
-                type="button"
-                onClick={evaluar}
-              >
-                Evaluar reoptimización
-              </button>
+            <div className="form-actions">
+              {rutaCerrada ? (
+                <p className="ayuda-accion">
+                  {rutaActual.estado === 'CANCELADA'
+                    ? 'Esta ruta está cancelada.'
+                    : 'Esta ruta está cerrada: no queda nada por ' +
+                      'entregar. Ya no se puede corregir su ' +
+                      'recorrido, queda como registro de lo que se ' +
+                      'hizo.'}
+                  {entregasCerradas.length > 0 && (
+                    <> {entregasCerradas.length} de{' '}
+                      {rutaActual.pedidos?.length ?? 0} entregas
+                      están cerradas.
+                    </>
+                  )}
+                </p>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={reoptimizar}
+                    disabled={optimizando}
+                  >
+                    Corregir recorrido
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={evaluar}
+                  >
+                    Evaluar reoptimización
+                  </button>
+                </>
+              )}
             </div>
 
             {evaluacion && (
@@ -407,8 +480,8 @@ export default function Rutas() {
                 }
               >
                 {evaluacion.requiere_reoptimizacion
-                  ? `Requiere reoptimización: ${evaluacion.motivos.join(' ')}`
-                  : 'No se requieren cambios por tráfico ni incidentes.'}
+                  ? `Conviene corregir el recorrido: ${evaluacion.motivos.join(' ')}`
+                  : 'No hace falta corregir el recorrido por tráfico ni incidentes.'}
               </div>
             )}
 
@@ -554,29 +627,42 @@ export default function Rutas() {
                           </span>
                         </td>
                         <td>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              marcarEntrega(
-                                p.id_pedido,
-                                'ENTREGADO'
-                              )
-                            }
-                          >
-                            Entregar
-                          </button>
+                          {p.estado_entrega === 'ENTREGADO' ||
+                          p.estado_entrega === 'FALLIDO' ? (
+                            /* Una entrega cerrada es un registro:
+                               no se puede volver atrás. */
+                            <span className="entrega-cerrada">
+                              {p.estado_entrega === 'ENTREGADO'
+                                ? 'Entregado'
+                                : 'No entregado'}
+                            </span>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  marcarEntrega(
+                                    p.id_pedido,
+                                    'ENTREGADO'
+                                  )
+                                }
+                              >
+                                Entregar
+                              </button>
 
-                          <button
-                            type="button"
-                            onClick={() =>
-                              marcarEntrega(
-                                p.id_pedido,
-                                'FALLIDO'
-                              )
-                            }
-                          >
-                            Fallar
-                          </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  marcarEntrega(
+                                    p.id_pedido,
+                                    'FALLIDO'
+                                  )
+                                }
+                              >
+                                Fallar
+                              </button>
+                            </>
+                          )}
                         </td>
                       </tr>
                     ))}

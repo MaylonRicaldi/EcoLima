@@ -4,7 +4,13 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.jwt import decode_access_token
-from app.core.permisos import CLIENTE, CONDUCTOR, roles_con_permiso
+from app.core.permisos import (
+    ADMIN,
+    CLIENTE,
+    CONDUCTOR,
+    OPERADOR,
+    roles_con_permiso,
+)
 from app.db.database import SessionLocal
 
 
@@ -154,3 +160,87 @@ def id_cliente_de(usuario, db):
         text("SELECT id_cliente FROM clientes WHERE email = :email"),
         {"email": usuario["email"]},
     ).scalar()
+
+
+def id_rutas_de_conductor(usuario, db):
+    """Rutas asignadas al conductor autenticado.
+
+    Devuelve el conjunto de id_ruta que le corresponden, o None si el
+    usuario no es CONDUCTOR (en ese caso el filtro no aplica).
+    """
+    if not es_conductor(usuario):
+        return None
+
+    filas = db.execute(
+        text("""
+            SELECT a.id_ruta
+            FROM asignaciones a
+            INNER JOIN conductores c
+                ON c.id_conductor = a.id_conductor
+            WHERE c.id_usuario = :id
+        """),
+        {"id": int(usuario["id_usuario"])},
+    ).scalars().all()
+
+    return set(filas)
+
+
+def require_entrega_de_ruta(usuario, db, id_ruta):
+    """Autoriza a actualizar el estado de entrega de un pedido.
+
+    ADMIN y OPERADOR pueden sobre cualquier ruta. El CONDUCTOR sólo
+    sobre las rutas que tiene asignadas: no puede tocar la operación
+    de otro conductor ni cambiar el estado de la ruta.
+    """
+    rol = usuario["rol"]
+
+    if rol in (ADMIN, OPERADOR):
+        return
+
+    if rol != CONDUCTOR:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tiene permisos para actualizar entregas",
+        )
+
+    rutas = id_rutas_de_conductor(usuario, db)
+
+    if rutas is None or id_ruta not in rutas:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Esta ruta no está asignada a usted. "
+                "Solo puede actualizar sus propias entregas."
+            ),
+        )
+
+
+def id_pedidos_de_conductor(usuario, db):
+    """Pedidos asignados al conductor autenticado.
+
+    Recorre la relación real del proyecto:
+
+        conductores -> asignaciones -> rutas -> ruta_pedidos
+
+    Devuelve el conjunto de id_pedido que le corresponden, o None si el
+    usuario no es CONDUCTOR (en ese caso el filtro no debe aplicarse).
+    Un conductor sin asignaciones devuelve el conjunto vacío, por lo
+    que no ve ningún pedido.
+    """
+    if not es_conductor(usuario):
+        return None
+
+    filas = db.execute(
+        text("""
+            SELECT rp.id_pedido
+            FROM ruta_pedidos rp
+            INNER JOIN asignaciones a
+                ON a.id_ruta = rp.id_ruta
+            INNER JOIN conductores c
+                ON c.id_conductor = a.id_conductor
+            WHERE c.id_usuario = :id
+        """),
+        {"id": int(usuario["id_usuario"])},
+    ).scalars().all()
+
+    return set(filas)

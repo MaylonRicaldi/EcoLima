@@ -6,6 +6,8 @@ import {
   actualizarVehiculo,
   cambiarEstadoVehiculo,
 } from '../services/vehiculos'
+import Esqueleto from '../components/Esqueleto'
+import Modal from '../components/Modal'
 
 
 const formularioInicial = {
@@ -66,6 +68,7 @@ export default function Vehiculos() {
   const [vehiculos, setVehiculos] = useState([])
   const [formulario, setFormulario] = useState(formularioInicial)
   const [vehiculoEditando, setVehiculoEditando] = useState(null)
+  const [modalAbierto, setModalAbierto] = useState(false)
 
   const [cargando, setCargando] = useState(true)
   const [guardando, setGuardando] = useState(false)
@@ -108,6 +111,16 @@ export default function Vehiculos() {
   function limpiarFormulario() {
     setFormulario(formularioInicial)
     setVehiculoEditando(null)
+    setModalAbierto(false)
+  }
+
+
+  function abrirRegistro() {
+    limpiarFormulario()
+
+    setError('')
+    setMensaje('')
+    setModalAbierto(true)
   }
 
 
@@ -133,10 +146,9 @@ export default function Vehiculos() {
       estado: vehiculo.estado,
     })
 
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth',
-    })
+    setError('')
+    setMensaje('')
+    setModalAbierto(true)
   }
 
 
@@ -202,7 +214,23 @@ export default function Vehiculos() {
   return (
     <div className="vehiculos-page">
 
-      <h1>Gestión de vehículos</h1>
+      <div className="pagina-header">
+        <div>
+          <h1>Gestión de vehículos</h1>
+
+          <p>
+            Flota de reparto: capacidades, consumos y costos
+            que alimentan el cálculo de rutas.
+          </p>
+        </div>
+
+        <button
+          className="boton-principal"
+          onClick={abrirRegistro}
+        >
+          Registrar vehículo
+        </button>
+      </div>
 
       {error && (
         <div className="mensaje error">
@@ -217,13 +245,20 @@ export default function Vehiculos() {
       )}
 
 
-      <section className="formulario-vehiculo">
-
-        <h2>
-          {vehiculoEditando
+      <Modal
+        abierto={modalAbierto}
+        onCerrar={limpiarFormulario}
+        ancho="grande"
+        titulo={
+          vehiculoEditando
             ? 'Editar vehículo'
-            : 'Registrar vehículo'}
-        </h2>
+            : 'Registrar vehículo'
+        }
+        descripcion={
+          'La placa identifica al vehículo en las rutas y define ' +
+          'a qué días puede circular.'
+        }
+      >
 
         <form onSubmit={manejarSubmit}>
 
@@ -496,20 +531,18 @@ export default function Vehiculos() {
                   : 'Registrar vehículo'}
             </button>
 
-            {vehiculoEditando && (
-              <button
+            <button
                 type="button"
                 onClick={limpiarFormulario}
               >
-                Cancelar
+                Cerrar
               </button>
-            )}
 
           </div>
 
         </form>
 
-      </section>
+      </Modal>
 
 
       <section className="lista-vehiculos">
@@ -517,7 +550,7 @@ export default function Vehiculos() {
         <h2>Vehículos registrados</h2>
 
         {cargando ? (
-          <p>Cargando vehículos...</p>
+          <Esqueleto texto="vehículos" tipo="filas" />
         ) : vehiculos.length === 0 ? (
           <p>No hay vehículos registrados.</p>
         ) : (

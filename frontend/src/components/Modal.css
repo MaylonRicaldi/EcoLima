@@ -1,0 +1,206 @@
+/* ============================================================
+   Cuadro de diálogo para los formularios de registro.
+
+   El fondo oscurecido y desenfocado separa el formulario del
+   listado que queda detrás, para que quede claro que es una
+   ventana temporal y no otra sección de la página.
+   ============================================================ */
+
+.modal-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(9, 62, 74, 0.42);
+  -webkit-backdrop-filter: blur(0.5rem);
+  backdrop-filter: blur(0.5rem);
+  animation: modal-entra-fondo 0.25s var(--ease-fuerte) both;
+  overflow-y: auto;
+}
+
+@keyframes modal-entra-fondo {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: calc(100svh - 3rem);
+  border-radius: 1.5rem;
+  border: 1px solid var(--borde);
+  background: rgba(255, 255, 255, 0.94);
+  -webkit-backdrop-filter: blur(1.75rem) saturate(180%);
+  backdrop-filter: blur(1.75rem) saturate(180%);
+  box-shadow:
+    0 2.5rem 5rem -2rem rgba(9, 62, 74, 0.55),
+    var(--brillo);
+  animation: modal-entra 0.32s var(--ease) both;
+  overflow: hidden;
+}
+
+@keyframes modal-entra {
+  from {
+    opacity: 0;
+    transform: translateY(1.25rem) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-pequeno {
+  max-width: 26rem;
+}
+
+.modal-mediano {
+  max-width: 46rem;
+}
+
+.modal-grande {
+  max-width: 62rem;
+}
+
+/* ---------------- Cabecera ---------------- */
+
+.modal-cabecera {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem 1rem;
+  border-bottom: 1px solid var(--linea);
+  background: linear-gradient(
+    180deg,
+    rgba(236, 253, 245, 0.75),
+    transparent
+  );
+}
+
+.modal-cabecera h2 {
+  font-size: 1.1rem;
+}
+
+.modal-cabecera h2::before {
+  box-shadow: 0 0 0.9rem rgba(16, 185, 129, 0.65);
+}
+
+.modal-cabecera p {
+  margin-top: 0.25rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--texto-medio);
+  max-width: 40rem;
+}
+
+.modal-cerrar {
+  flex-shrink: 0;
+  width: 2.125rem;
+  height: 2.125rem;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 0.6875rem;
+  font-size: 1.4rem;
+  line-height: 1;
+  color: var(--texto-medio);
+  background: rgba(255, 255, 255, 0.7);
+  border-color: var(--borde-tenue);
+}
+
+.modal-cerrar:hover:not(:disabled) {
+  color: #be123c;
+  background: rgba(255, 228, 230, 0.9);
+  border-color: rgba(251, 113, 133, 0.55);
+}
+
+/* ---------------- Cuerpo ---------------- */
+
+.modal-cuerpo {
+  padding: 1.25rem 1.5rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Dentro del modal el formulario no necesita el hueco extra que
+   dan los <div> sueltos de la rejilla de página. */
+.modal-cuerpo form {
+  gap: 0;
+}
+
+.modal-cuerpo form > div {
+  margin-bottom: 0.875rem;
+}
+
+/* El mapa del selector de ubicación necesita el ancho completo */
+.modal-cuerpo .campo-completo {
+  grid-column: 1 / -1;
+}
+
+/* ---------------- Pie ---------------- */
+
+.modal-pie {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.625rem;
+  padding: 1rem 1.5rem 1.25rem;
+  border-top: 1px solid var(--linea);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.modal-pie .formulario-acciones {
+  margin-top: 0;
+  width: 100%;
+  justify-content: flex-end;
+}
+
+/* ---------------- Móvil ---------------- */
+
+@media (max-width: 45rem) {
+  .modal-fondo {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .modal {
+    max-height: 92svh;
+    border-radius: 1.5rem 1.5rem 0 0;
+    animation: modal-entra-movil 0.32s var(--ease) both;
+  }
+
+  @keyframes modal-entra-movil {
+    from {
+      transform: translateY(100%);
+    }
+
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  .modal-cabecera,
+  .modal-cuerpo,
+  .modal-pie {
+    padding-left: 1.125rem;
+    padding-right: 1.125rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-fondo,
+  .modal {
+    animation: none;
+  }
+}

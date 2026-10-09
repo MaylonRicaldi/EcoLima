@@ -180,14 +180,59 @@ def main():
               f"CO2 {ruta['co2_kg']} kg, S/ {ruta['costo_total']}, "
               f"cumplimiento {ruta['cumplimiento_ventanas_pct']}%")
 
-    # ---------- los pedidos pasan a ASIGNADO ----------
+    # ---------- los pedidos planificados pasan a ASIGNADO ----------
+    # Se lee ruta_pedidos en la base: es la fuente de verdad de qué
+    # pedidos quedaron dentro de una ruta.
+    ids_rutas = [ruta["id_ruta"] for ruta in rutas]
+
+    planificados = set()
+
+    if ids_rutas:
+        filas = db.execute(
+            text("""
+                SELECT id_pedido FROM ruta_pedidos
+                WHERE id_ruta = ANY(:ids)
+            """),
+            {"ids": ids_rutas},
+        ).scalars().all()
+
+        planificados = set(filas)
+
     st, datos = admin.get("/pedidos")
-    asignados = [p for p in datos if p["id_pedido"] in ids
-                 and p["estado"] == "ASIGNADO"]
+    estado_por_id = {p["id_pedido"]: p["estado"] for p in datos}
+
+    asignados = [
+        pid for pid in planificados
+        if estado_por_id.get(pid) == "ASIGNADO"
+    ]
+
+    r.check("hubo pedidos planificados en ruta_pedidos",
+            len(planificados) > 0, f"{len(planificados)}")
+
     r.check("los pedidos planificados quedan ASIGNADO",
-            len(asignados) == resultado["pedidos_planificados"],
-            f"{len(asignados)} ASIGNADO vs "
-            f"{resultado['pedidos_planificados']} planificados")
+            len(asignados) == len(planificados),
+            f"{len(asignados)}/{len(planificados)} ASIGNADO")
+
+    r.check("los pedidos de prueba siguen planificables",
+            all(
+                estado_por_id.get(pid) in ("ASIGNADO", "PENDIENTE")
+                for pid in ids
+            ),
+            str({pid: estado_por_id.get(pid) for pid in ids}))
+
+    # Toda ruta persistida debe tener asignación (relación obligatoria)
+    sin_asignacion = db.execute(
+        text("""
+            SELECT r.id_ruta
+            FROM rutas r
+            LEFT JOIN asignaciones a ON a.id_ruta = r.id_ruta
+            WHERE r.id_ruta = ANY(:ids) AND a.id_asignacion IS NULL
+        """),
+        {"ids": ids_rutas or [0]},
+    ).scalars().all()
+
+    r.check("toda ruta persistida tiene asignación",
+            not sin_asignacion, str(sin_asignacion))
 
     # RN-008: perecedero y quimico nunca en la misma ruta
     mezclado = False

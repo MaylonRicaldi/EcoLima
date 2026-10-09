@@ -5,14 +5,18 @@ import {
   actualizarConductor,
   cambiarEstadoConductor,
   listarLicencias,
+  listarVehiculosCompatibles,
   crearLicencia,
   actualizarLicencia,
   cambiarEstadoLicencia,
 } from '../services/conductores'
+import Esqueleto from '../components/Esqueleto'
+import Modal from '../components/Modal'
 
 function Conductores() {
   const [conductores, setConductores] = useState([])
   const [conductorEditando, setConductorEditando] = useState(null)
+  const [modalConductor, setModalConductor] = useState(false)
 
   const [licencias, setLicencias] = useState([])
   const [conductorLicencias, setConductorLicencias] = useState(null)
@@ -20,12 +24,13 @@ function Conductores() {
   const [mostrarLicencia, setMostrarLicencia] = useState(false)
   const [licenciaEditando, setLicenciaEditando] = useState(null)
 
+  const [habilitacion, setHabilitacion] = useState(null)
+
   const [mensaje, setMensaje] = useState('')
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
 
   const formularioInicial = {
-    id_usuario: '',
     dni: '',
     nombre: '',
     apellido: '',
@@ -40,7 +45,7 @@ function Conductores() {
 
   const licenciaInicial = {
     numero: '',
-    categoria: 'A-I',
+    categoria: 'B-IIB',
     fecha_emision: '',
     fecha_vencimiento: '',
     estado: 'VIGENTE',
@@ -87,6 +92,16 @@ function Conductores() {
   function limpiarFormulario() {
     setFormulario(formularioInicial)
     setConductorEditando(null)
+    setModalConductor(false)
+  }
+
+
+  function abrirRegistro() {
+    limpiarFormulario()
+
+    setMensaje('')
+    setError('')
+    setModalConductor(true)
   }
 
   async function guardarConductor(event) {
@@ -96,7 +111,6 @@ function Conductores() {
     setError('')
 
     const datos = {
-      id_usuario: Number(formulario.id_usuario),
       dni: formulario.dni,
       nombre: formulario.nombre,
       apellido: formulario.apellido,
@@ -138,9 +152,9 @@ function Conductores() {
     setMensaje('')
     setError('')
     setConductorEditando(conductor)
+    setModalConductor(true)
 
     setFormulario({
-      id_usuario: String(conductor.id_usuario),
       dni: conductor.dni,
       nombre: conductor.nombre,
       apellido: conductor.apellido,
@@ -207,6 +221,36 @@ function Conductores() {
     setFormularioLicencia(licenciaInicial)
     setLicenciaEditando(null)
     setMostrarLicencia(true)
+  }
+
+
+  /* Muestra, para un conductor, qué vehículos de la flota puede
+     manejar y cuáles no, con el motivo de cada bloqueo. */
+  async function verHabilitacion(conductor) {
+    try {
+      setMensaje('')
+      setError('')
+
+      setHabilitacion({
+        cargando: true,
+        conductor,
+        datos: null,
+      })
+
+      const data = await listarVehiculosCompatibles(
+        conductor.id_conductor
+      )
+
+      setHabilitacion({
+        cargando: false,
+        conductor,
+        datos: data,
+      })
+    } catch (err) {
+      setError(err.message)
+
+      setHabilitacion(null)
+    }
   }
 
   async function guardarLicencia(event) {
@@ -301,31 +345,41 @@ function Conductores() {
 
   return (
     <main>
-      <h1>Gestión de conductores</h1>
+      <div className="pagina-header">
+        <div>
+          <h1>Gestión de conductores</h1>
+
+          <p>
+            Personal de reparto y licencias de conducir.
+          </p>
+        </div>
+
+        <button
+          className="boton-principal"
+          onClick={abrirRegistro}
+        >
+          Registrar conductor
+        </button>
+      </div>
 
       {mensaje && <p>{mensaje}</p>}
       {error && <p>{error}</p>}
 
-      <section>
-        <h2>
-          {conductorEditando
+      <Modal
+        abierto={modalConductor}
+        onCerrar={limpiarFormulario}
+        titulo={
+          conductorEditando
             ? 'Editar conductor'
-            : 'Registrar conductor'}
-        </h2>
+            : 'Registrar conductor'
+        }
+        descripcion={
+          'El conductor es un registro de la operación: se guarda ' +
+          'solo, sin necesidad de una cuenta de acceso al sistema.'
+        }
+      >
 
         <form onSubmit={guardarConductor}>
-          <div>
-            <label>ID usuario</label>
-            <input
-              name="id_usuario"
-              type="number"
-              min="1"
-              value={formulario.id_usuario}
-              onChange={cambiarCampo}
-              required
-            />
-          </div>
-
           <div>
             <label>DNI</label>
             <input
@@ -468,19 +522,17 @@ function Conductores() {
               type="button"
               onClick={limpiarFormulario}
             >
-              Cancelar
+              Cerrar
             </button>
           )}
         </form>
-      </section>
-
-      <hr />
+      </Modal>
 
       <section>
         <h2>Conductores registrados</h2>
 
         {cargando ? (
-          <p>Cargando conductores...</p>
+          <Esqueleto texto="conductores" tipo="filas" />
         ) : (
           <table>
             <thead>
@@ -488,7 +540,6 @@ function Conductores() {
                 <th>ID</th>
                 <th>DNI</th>
                 <th>Nombre</th>
-                <th>Usuario</th>
                 <th>Experiencia</th>
                 <th>Disponibilidad</th>
                 <th>Estado</th>
@@ -504,9 +555,6 @@ function Conductores() {
                   <td>
                     {conductor.nombre}{' '}
                     {conductor.apellido}
-                  </td>
-                  <td>
-                    {conductor.usuario_email}
                   </td>
                   <td>
                     {conductor.anios_experiencia} años
@@ -554,6 +602,15 @@ function Conductores() {
                     >
                       Licencias
                     </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        verHabilitacion(conductor)
+                      }
+                    >
+                      Qué puede manejar
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -562,16 +619,107 @@ function Conductores() {
         )}
       </section>
 
-      {conductorLicencias && (
-        <>
-          <hr />
+      {habilitacion && (
+        <section>
+          <h2>
+            Qué puede manejar{' '}
+            {habilitacion.conductor.nombre}{' '}
+            {habilitacion.conductor.apellido}
+          </h2>
 
-          <section>
-            <h2>
-              Licencias de{' '}
-              {conductorLicencias.nombre}{' '}
-              {conductorLicencias.apellido}
-            </h2>
+          <p className="instruccion-mapa">
+            Se cruza la categoría de sus licencias vigentes con el
+            tipo de cada vehículo de la flota. Un conductor sin la
+            licencia habilitante no puede recibir ese vehículo en una
+            ruta.
+          </p>
+
+          {habilitacion.cargando ? (
+            <Esqueleto texto="vehículos" filas={3} />
+          ) : (
+            <>
+              <div className="licencias-conductor">
+                <strong>Licencias vigentes:</strong>
+
+                {habilitacion.datos.categorias_licencia.length ===
+                0 ? (
+                  <span className="sin-licencia">
+                    ninguna vigente
+                  </span>
+                ) : (
+                  habilitacion.datos.categorias_licencia.map(
+                    (categoria) => (
+                      <span
+                        key={categoria}
+                        className="chip-licencia"
+                      >
+                        {categoria}
+                      </span>
+                    )
+                  )
+                )}
+              </div>
+
+              <ul className="lista-habilitacion">
+                {habilitacion.datos.vehiculos.map((vehiculo) => (
+                  <li
+                    key={vehiculo.id_vehiculo}
+                    className={
+                      vehiculo.habilitado
+                        ? 'habilitacion-item si'
+                        : 'habilitacion-item no'
+                    }
+                  >
+                    <span className="habilitacion-placa">
+                      {vehiculo.placa}
+                    </span>
+
+                    <span className="habilitacion-tipo">
+                      {vehiculo.tipo_vehiculo}
+                    </span>
+
+                    <span className="habilitacion-detalle">
+                      {vehiculo.habilitado
+                        ? `${vehiculo.capacidad_kg} kg · ` +
+                          `${vehiculo.capacidad_m3} m³`
+                        : vehiculo.motivo}
+                    </span>
+
+                    <span
+                      className={
+                        vehiculo.habilitado
+                          ? 'chip-si'
+                          : 'chip-no'
+                      }
+                    >
+                      {vehiculo.habilitado
+                        ? 'Puede'
+                        : 'No puede'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          <div className="form-actions">
+            <button
+              type="button"
+              onClick={() => setHabilitacion(null)}
+            >
+              Cerrar
+            </button>
+          </div>
+        </section>
+      )}
+
+      {conductorLicencias && (
+        <section>
+          <h2>
+            Licencias de{' '}
+            {conductorLicencias.nombre}{' '}
+            {conductorLicencias.apellido}
+          </h2>
 
             <button
               type="button"
@@ -580,13 +728,20 @@ function Conductores() {
               Nueva licencia
             </button>
 
-            {mostrarLicencia && (
+            <Modal
+              abierto={mostrarLicencia}
+              onCerrar={() => {
+                setMostrarLicencia(false)
+                setLicenciaEditando(null)
+              }}
+              titulo={
+                licenciaEditando
+                  ? 'Editar licencia'
+                  : 'Registrar licencia'
+              }
+              descripcion={`Licencias de ${conductorLicencias.nombre} ${conductorLicencias.apellido}`}
+            >
               <form onSubmit={guardarLicencia}>
-                <h3>
-                  {licenciaEditando
-                    ? 'Editar licencia'
-                    : 'Registrar licencia'}
-                </h3>
 
                 <div>
                   <label>Número</label>
@@ -609,13 +764,55 @@ function Conductores() {
                     }
                     onChange={cambiarCampoLicencia}
                   >
-                    <option value="A-I">A-I</option>
-                    <option value="A-IIA">A-IIA</option>
-                    <option value="A-IIB">A-IIB</option>
-                    <option value="A-IIIA">A-IIIA</option>
-                    <option value="A-IIIB">A-IIIB</option>
-                    <option value="A-IIIC">A-IIIC</option>
+                    <optgroup label="Clase A · autos, camionetas, camiones y buses">
+                      <option value="A-I">
+                        A-I · autos particulares
+                      </option>
+
+                      <option value="A-IIA">
+                        A-IIa · autos y transporte público
+                      </option>
+
+                      <option value="A-IIB">
+                        A-IIb · combis, microbuses y camiones
+                      </option>
+
+                      <option value="A-IIIA">
+                        A-IIIa · buses interprovinciales
+                      </option>
+
+                      <option value="A-IIIB">
+                        A-IIIb · carga pesada y trailers
+                      </option>
+
+                      <option value="A-IIIC">
+                        A-IIIc · máxima categoría
+                      </option>
+                    </optgroup>
+
+                    <optgroup label="Clase B · motos y mototaxis">
+                      <option value="B-I">
+                        B-I · baja cilindrada o eléctricas
+                      </option>
+
+                      <option value="B-IIA">
+                        B-IIa · bicimotos y motos adaptadas
+                      </option>
+
+                      <option value="B-IIB">
+                        B-IIb · motos de dos ruedas (delivery)
+                      </option>
+
+                      <option value="B-IIC">
+                        B-IIc · mototaxis y trimotos
+                      </option>
+                    </optgroup>
                   </select>
+
+                  <small className="ayuda-campo">
+                    Un brevete de clase A no habilita para manejar
+                    una moto, ni uno de clase B para un camión.
+                  </small>
                 </div>
 
                 <div>
@@ -679,10 +876,10 @@ function Conductores() {
                     setLicenciaEditando(null)
                   }}
                 >
-                  Cancelar
+                  Cerrar
                 </button>
               </form>
-            )}
+            </Modal>
 
             <h3>Licencias registradas</h3>
 
@@ -750,7 +947,6 @@ function Conductores() {
               </tbody>
             </table>
           </section>
-        </>
       )}
     </main>
   )

@@ -1,4 +1,4 @@
-import { getToken } from './auth'
+import { getToken, expirarSesion } from './auth'
 
 const API_URL = 'http://localhost:8000'
 
@@ -39,6 +39,14 @@ async function solicitud(endpoint, opciones = {}) {
 
   const data = await response.json()
 
+  if (response.status === 401) {
+    expirarSesion()
+
+    throw new Error(
+      'Su sesión expiró. Ingrese nuevamente.'
+    )
+  }
+
   if (!response.ok) {
     throw new Error(extraerError(data))
   }
@@ -73,4 +81,45 @@ export async function cambiarEstadoCliente(id, estado) {
     method: 'PATCH',
     body: JSON.stringify({ estado }),
   })
+}
+
+/* ------------------------------------------------------------------
+ * Ventanas de tiempo (RN-005 / RN-012)
+ *
+ * Son intervalos [hora_inicio, hora_fin] con su tolerancia y su costo
+ * por minuto de retraso. No tienen estado ni nombre: eso es lo que
+ * expone el backend y lo que la tabla del DDL tiene.
+ * ---------------------------------------------------------------- */
+
+export async function listarVentanasTiempo() {
+  return solicitud('/clientes/ventanas-tiempo')
+}
+
+export async function obtenerVentanaTiempo(id) {
+  return solicitud(`/clientes/ventanas-tiempo/${id}`)
+}
+
+export async function crearVentanaTiempo(datos) {
+  return solicitud('/clientes/ventanas-tiempo', {
+    method: 'POST',
+    body: JSON.stringify(datos),
+  })
+}
+
+export async function actualizarVentanaTiempo(id, datos) {
+  return solicitud(`/clientes/ventanas-tiempo/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(datos),
+  })
+}
+
+export async function eliminarVentanaTiempo(id) {
+  return solicitud(`/clientes/ventanas-tiempo/${id}`, {
+    method: 'DELETE',
+  })
+}
+
+/* Sólo las horas, para el desplegable del formulario de pedidos. */
+export async function listarVentanasDisponibles() {
+  return solicitud('/clientes/ventanas-tiempo/disponibles')
 }

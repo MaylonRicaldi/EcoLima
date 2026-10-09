@@ -4,10 +4,11 @@ Usa urllib de la biblioteca estándar. Reemplaza a requests/httpx que
 no están en el .venv del proyecto.
 """
 import json
+import os
 import urllib.error
 import urllib.request
 
-BASE = "http://127.0.0.1:8000"
+BASE = os.environ.get("ECOLIMA_API", "http://127.0.0.1:8000")
 
 
 class Api:

@@ -93,6 +93,10 @@ def conductores_disponibles(db):
 
     RN-004: jornada máxima de 8 h y descanso de 1 h por cada 4 h.
     Se exige licencia VIGENTE para conducir.
+
+    `categorias_licencia` trae todas las licencias habilitantes del
+    conductor, para que el optimizador pueda exigir que cubran el
+    tipo de vehículo de la ruta (ver app/core/licencias.py).
     """
     return db.execute(
         text("""
@@ -108,7 +112,14 @@ def conductores_disponibles(db):
                 c.horas_max_conduccion,
                 c.horas_conduccion_acumuladas,
                 c.ubicacion_inicio,
-                c.estado
+                c.estado,
+                ARRAY(
+                    SELECT l.categoria
+                    FROM licencias l
+                    WHERE l.id_conductor = c.id_conductor
+                      AND l.estado = 'VIGENTE'
+                      AND l.fecha_vencimiento >= CURRENT_DATE
+                ) AS categorias_licencia
             FROM conductores c
             WHERE c.estado IN ('DISPONIBLE','DESCANSO')
               AND EXISTS (
@@ -206,3 +217,139 @@ def eliminar_planificacion_anterior(db, id_ruta):
         text("DELETE FROM ruta_pedidos WHERE id_ruta = :id_ruta"),
         {"id_ruta": id_ruta},
     )
+
+
+# ---------------------------------------------------------------------------
+# Reoptimización: los datos de UNA ruta ya planificada
+# ---------------------------------------------------------------------------
+#
+# La reoptimización no vuelve a repartir los pedidos entre toda la
+# flota. Trabaja sobre una ruta que ya existe y conserva su vehículo y
+# su conductor; lo único que cambia es el orden de visita. Por eso
+# aquí NO se filtran los vehículos por estado ACTIVO ni los conductores
+# por disponibilidad: si el vehículo está en mantenimiento o el
+# conductor está en descanso, esa es la realidad de la ruta y hay que
+# poder corregirle el recorrido igual.
+
+
+def pedidos_de_ruta(db, id_ruta):
+    """Los pedidos de una ruta, en su orden de visita actual."""
+    return db.execute(
+        text("""
+            SELECT
+                p.id_pedido,
+                p.id_cliente,
+                p.direccion_entrega,
+                p.latitud,
+                p.longitud,
+                p.peso_kg,
+                p.volumen_m3,
+                p.prioridad,
+                p.tipo_producto,
+                vt.hora_inicio,
+                vt.hora_fin,
+                vt.tolerancia_minutos,
+                vt.penalizacion_por_minuto,
+                rp.orden_visita
+            FROM ruta_pedidos rp
+            INNER JOIN pedidos p
+                ON p.id_pedido = rp.id_pedido
+            INNER JOIN ventanas_tiempo vt
+                ON vt.id_ventana = p.id_ventana_tiempo
+            WHERE rp.id_ruta = :id_ruta
+            ORDER BY rp.orden_visita
+        """),
+        {"id_ruta": id_ruta},
+    ).mappings().all()
+
+
+def vehiculo_de_ruta(db, id_ruta):
+    """El vehículo que ya tiene asignada la ruta, o None."""
+    return db.execute(
+        text("""
+            SELECT
+                v.id_vehiculo,
+                v.placa,
+                v.capacidad_kg,
+                v.capacidad_m3,
+                v.consumo_km_l,
+                v.factor_co2_kg_km,
+                v.tipo_combustible,
+                v.costo_adquisicion,
+                v.costo_soat_anual,
+                v.costo_seguro_anual,
+                v.depreciacion_anual,
+                v.estado,
+                t.nombre AS tipo_nombre
+            FROM asignaciones a
+            INNER JOIN vehiculos v
+                ON v.id_vehiculo = a.id_vehiculo
+            INNER JOIN tipos_vehiculo t
+                ON t.id_tipo = v.id_tipo_vehiculo
+            WHERE a.id_ruta = :id_ruta
+        """),
+        {"id_ruta": id_ruta},
+    ).mappings().first()
+
+
+def entregas_cerradas_de_ruta(db, id_ruta):
+    """Los pedidos de la ruta que ya se entregaron o fallaron.
+
+    Esos pedidos no se vuelven a planificar. Un pedido entregado es
+    el registro de una entrega que ya ocurrió, y un pedido fallido
+    también: en los dos casos corregir el recorrido de lo que queda no
+    debe reescribirlos.
+
+    Devuelve un diccionario id_pedido -> datos de la entrega, con su
+    hora real y su orden, para poder conservarlos tal cual.
+    """
+    filas = db.execute(
+        text("""
+            SELECT
+                rp.id_pedido,
+                rp.orden_visita,
+                rp.estado_entrega,
+                rp.hora_llegada_real,
+                p.latitud,
+                p.longitud
+            FROM ruta_pedidos rp
+            INNER JOIN pedidos p
+                ON p.id_pedido = rp.id_pedido
+            WHERE rp.id_ruta = :id_ruta
+              AND rp.estado_entrega IN ('ENTREGADO', 'FALLIDO')
+        """),
+        {"id_ruta": id_ruta},
+    ).mappings().all()
+
+    return {f['id_pedido']: dict(f) for f in filas}
+
+
+def conductor_de_ruta(db, id_ruta):
+    """El conductor que ya tiene asignada la ruta, o None."""
+    return db.execute(
+        text("""
+            SELECT
+                c.id_conductor,
+                c.id_usuario,
+                c.nombre,
+                c.apellido,
+                c.hora_disponibilidad_inicio,
+                c.hora_disponibilidad_fin,
+                c.horas_max_conduccion,
+                c.horas_conduccion_acumuladas,
+                c.ubicacion_inicio,
+                c.estado,
+                ARRAY(
+                    SELECT l.categoria
+                    FROM licencias l
+                    WHERE l.id_conductor = c.id_conductor
+                      AND l.estado = 'VIGENTE'
+                      AND l.fecha_vencimiento >= CURRENT_DATE
+                ) AS categorias_licencia
+            FROM asignaciones a
+            INNER JOIN conductores c
+                ON c.id_conductor = a.id_conductor
+            WHERE a.id_ruta = :id_ruta
+        """),
+        {"id_ruta": id_ruta},
+    ).mappings().first()

@@ -73,18 +73,40 @@ export default function MapaRuta({
 
     const paradas = ruta?.paradas ?? []
 
-    // Trazado de la ruta en orden de visita
-    const puntos = paradas
-      .filter((p) => p.tipo_parada !== 'DESCANSO')
-      .map((p) => [Number(p.latitud), Number(p.longitud)])
+    /* Trazado de la ruta en orden de visita.
+
+       Si el backend pudo consultar el motor de rutas, `trazado`
+       trae la geometría real que sigue las calles. Si no, se une en
+       línea recta y se avisa, para no hacer creer que ese tramo
+       existe como calle. */
+    const paradasUtiles = paradas.filter(
+      (p) => p.tipo_parada !== 'DESCANSO'
+    )
+
+    const tieneTrazadoReal =
+      Array.isArray(ruta?.trazado) && ruta.trazado.length >= 2
+
+    const puntos = tieneTrazadoReal
+      ? ruta.trazado.map(([lat, lon]) => [Number(lat), Number(lon)])
+      : paradasUtiles.map((p) => [Number(p.latitud), Number(p.longitud)])
 
     if (puntos.length >= 2) {
       L.polyline(puntos, {
         color: '#059669',
-        weight: 4,
-        opacity: 0.85,
+        weight: tieneTrazadoReal ? 5 : 4,
+        opacity: tieneTrazadoReal ? 0.9 : 0.55,
         lineJoin: 'round',
+        dashArray: tieneTrazadoReal ? null : '7 7',
       }).addTo(grupo)
+    }
+
+    if (!tieneTrazadoReal && paradasUtiles.length >= 2) {
+      grupo
+        .bindTooltip(
+          'Trazado estimado: no se pudo consultar el motor de rutas',
+          { permanent: true, direction: 'top', className: 'aviso-trazado' }
+        )
+        .openTooltip()
     }
 
     // Marcadores de cada parada

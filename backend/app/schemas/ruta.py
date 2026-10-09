@@ -55,6 +55,41 @@ class ReoptimizarRequest(BaseModel):
     motivo: str | None = None
 
 
+class ReoptimizacionRespuesta(BaseModel):
+    """Resultado de corregir el recorrido de una ruta (HU-08).
+
+    La reoptimización no reparte los pedidos entre toda la flota:
+    conserva el vehículo y el conductor que la ruta ya tenía y solo
+    vuelve a calcular el orden de visita.
+    """
+
+    id_ruta: int
+    vehiculo: str
+    id_vehiculo: int
+    conductor: str
+    id_conductor: int
+
+    # Los mismos pedidos, en el nuevo orden
+    pedidos: list[int]
+    orden_anterior: list[int]
+    orden_nuevo: list[int]
+    orden_cambio: bool
+
+    distancia_km: float
+    duracion_minutos: float
+    costo_total: float
+    co2_kg: float
+    cumplimiento_ventanas_pct: float | None
+
+    # Cuánto mejoró cada cosa respecto al recorrido anterior
+    cambio: dict[str, float | None]
+
+    motivo: str | None = None
+    segundos_resueltos: float
+    calles_reales: bool = True
+    advertencias: list[str] = Field(default_factory=list)
+
+
 class RutaEstadoUpdate(BaseModel):
     estado: str
 
