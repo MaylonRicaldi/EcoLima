@@ -344,27 +344,8 @@ Las fechas y estados anteriores reflejan lo visible en la captura compartida de 
 6. La mejora de la comunicación, la distribución de responsabilidades y el seguimiento de tareas debe mantenerse como prioridad del equipo.
 7. El Sprint 3 está planificado para generación, visualización y reoptimización de rutas; el Sprint 4 se orienta al dashboard, los reportes y el plan de compensación de carbono.
 
-## 14. Evidencias que deben adjuntarse
-
-Para convertir este informe de planificación en un informe de resultados verificados, se recomienda adjuntar:
-
-1. Captura del backlog con las historias HU-01 a HU-11, prioridades, Story Points y épicas.
-2. Evidencia del estado real del Sprint 1 y de su cierre, si corresponde.
-3. Evidencia de la existencia, las fechas y el estado real del Sprint 2.
-4. Capturas de HU-04 y HU-05 mostrando su estado, sprint, prioridad y estimación.
-5. Evidencia de las pruebas funcionales de acceso, flota, conductores, pedidos y clientes.
-6. Reportes disponibles de cobertura de pruebas y análisis de seguridad.
-7. Evidencia de revisión de código, integración y despliegue en el entorno de pruebas.
-8. Evidencia de la versión EcoLima MVP 1.0.0, si fue configurada y publicada.
-9. Capturas del Sprint 3 y Sprint 4 para respaldar la planificación posterior.
-
-## 15. Historial de cambios
-
-| Versión | Fecha | Descripción |
-|---|---|---|
-| 1.0.0 | 30/09/2026 | Informe inicial del estado del Sprint 1. |
-| 2.0.0 | 09/10/2026 | Se amplía el informe para incluir la planificación de los Sprints 1 y 2, el MVP 1.0.0, las validaciones de calidad, los riesgos, las acciones de mejora y los próximos sprints. Se aclara que el cierre de los Sprints 1 y 2 requiere verificación. |
-
 ---
 
-**Nota final:** Este informe está actualizado con la información de planificación proporcionada y distingue los resultados esperados de los resultados comprobados. Antes de entregarlo como cierre efectivo, se deben verificar las historias y los sprints en Jira, confirmar las fechas y completar las evidencias técnicas disponibles.
+**Versión del documento:** 1.1.0
+
+videncias técnicas disponibles.
