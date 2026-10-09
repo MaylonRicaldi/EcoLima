@@ -347,5 +347,3 @@ Las fechas y estados anteriores reflejan lo visible en la captura compartida de 
 ---
 
 **Versión del documento:** 1.1.0
-
-videncias técnicas disponibles.
