@@ -180,13 +180,6 @@ Estos estados corresponden a las capturas compartidas y pueden cambiar. Deben ac
 4. La demostración del trabajo debe respaldarse con capturas de la aplicación, pruebas y criterios de aceptación, además de los estados de Jira.
 5. Las funcionalidades de generación de rutas, visualización, reoptimización y sostenibilidad continúan en los sprints posteriores según la planificación compartida.
 
-## 8. Historial de cambios
-
-| Versión | Fecha | Descripción |
-|---|---|---|
-| 1.0.0 | 30/09/2026 | Revisión inicial del Sprint 1 con los estados registrados en Jira en ese momento. |
-| 2.0.0 | 09/10/2026 | Se incorpora la planificación actualizada de los Sprints 1 y 2, las historias HU-01 a HU-05, sus estimaciones, criterios de demostración, validaciones de calidad y pendientes de verificación. Se señala la discrepancia entre la planificación nueva y los estados anteriores de Jira. |
-
 ---
 
-**Nota final:** esta revisión debe contrastarse con Jira antes de presentarla como acta definitiva de los sprints. La planificación y los estados descritos en el archivo de actualización no sustituyen la evidencia del trabajo realmente completado.
+**Versión del documento:** 1.1.0
