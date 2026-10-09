@@ -60,13 +60,6 @@ Cuando se identifique un impedimento, el equipo debe:
 7. Registrar la fecha y la acción aplicada al resolverlo.
 8. Mantener el registro alineado con Jira y con los acuerdos reales del equipo.
 
-## 6. Historial de cambios
-
-| Versión | Fecha | Descripción |
-|---|---|---|
-| 1.0.0 | 30/09/2026 | Registro inicial de tres impedimentos asociados al Sprint 1. |
-| 2.0.0 | 09/10/2026 | Se actualizan los datos de identificación del documento, se incorpora el seguimiento del Sprint 2 y se aclara que no se han proporcionado impedimentos específicos para ese sprint. Se conservan los registros anteriores sin inventar incidencias nuevas. |
-
 ---
 
-**Nota:** Los impedimentos listados se conservan tal como aparecen en la versión anterior del registro. Antes de presentar el documento como evidencia definitiva, el equipo debe confirmar que las incidencias y sus fechas reflejan lo que realmente ocurrió.
+**Versión del documento:** 1.1.0
