@@ -117,13 +117,6 @@ Las respuestas deben reflejar lo que el equipo observó, no lo que se espera que
 4. La planificación del Sprint 2 contempla HU-04 – Gestión de pedidos y HU-05 – Gestión de clientes, pero la información disponible no incluye una retrospectiva real de su ejecución.
 5. Antes de declarar cumplidos los acuerdos de mejora, el equipo debe revisar sus experiencias y evidencias del Sprint 2.
 
-## 9. Historial de cambios
-
-| Versión | Fecha | Descripción |
-|---|---|---|
-| 1.0.0 | 30/09/2026 | Retrospectiva inicial basada en los aprendizajes y acuerdos de mejora del Sprint 1. |
-| 2.0.0 | 09/10/2026 | Se incorpora el contexto de planificación del Sprint 2, se detallan acciones de mejora y seguimiento en Jira, y se agregan preguntas para completar la retrospectiva con observaciones reales del equipo. |
-
 ---
 
-**Nota final:** este documento recoge los aprendizajes registrados para el Sprint 1 y propone cómo darles seguimiento. Las conclusiones específicas del Sprint 2 deben completarse con la experiencia real del equipo antes de presentar la retrospectiva como definitiva.
+**Versión del documento:** 1.1.0
