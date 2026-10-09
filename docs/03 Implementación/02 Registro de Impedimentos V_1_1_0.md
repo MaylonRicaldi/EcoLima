@@ -40,8 +40,8 @@ La información de planificación compartida identifica al Sprint 2 como **activ
 
 | ID | Historia de usuario | Story Points | Estado indicado en la actualización |
 |---|---|---:|---|
-| HU-04 | Gestión de pedidos | 8 | En curso |
-| HU-05 | Gestión de clientes | 5 | Por hacer |
+| HU-04 | Gestión de pedidos | 8 | Finalizado |
+| HU-05 | Gestión de clientes | 5 | Finalizado |
 
 El material recibido no identifica impedimentos concretos para estas historias. Por lo tanto, no se agregan registros nuevos para el Sprint 2. Que una historia esté en curso o por hacer no demuestra, por sí solo, que exista un impedimento.
 
