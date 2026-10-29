@@ -56,12 +56,26 @@ class Resultado:
     def __init__(self, titulo):
         self.titulo = titulo
         self.items = []
+        self.notas = []
 
     def check(self, nombre, condicion, detalle=""):
         self.items.append((nombre, bool(condicion), detalle))
         marca = "OK  " if condicion else "FALLA"
         print(f"  [{marca}] {nombre}" + (f"  -> {detalle}" if detalle else ""))
         return bool(condicion)
+
+    def nota(self, nombre, detalle=""):
+        """Algo que conviene mirar pero que no es un fallo.
+
+        Se usa para lo que depende de una decisión de negocio que
+        todavía no está tomada. Un fallo de verdad tiene que seguir
+        standout en la salida, así que esto no lo mezcla con las
+        comprobaciones: si todo verde significa "no hay nada roto", un
+        peso mal puesto en el optimizador no puede aparecer mezclado
+        con un error de SQL.
+        """
+        self.notas.append((nombre, detalle))
+        print(f"  [NOTA] {nombre}" + (f"  -> {detalle}" if detalle else ""))
 
     @property
     def ok(self):
@@ -74,6 +88,8 @@ class Resultado:
         for nombre, cond, detalle in self.items:
             if not cond:
                 print(f"   FALLA: {nombre}  {detalle}")
+        for nombre, detalle in self.notas:
+            print(f"   NOTA: {nombre}  {detalle}")
         return self.ok
 
 

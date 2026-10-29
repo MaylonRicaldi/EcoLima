@@ -161,7 +161,10 @@ CREATE TABLE ventanas_tiempo (
     hora_inicio TIME NOT NULL,
     hora_fin TIME NOT NULL CHECK (hora_fin > hora_inicio),
     tolerancia_minutos INT NOT NULL DEFAULT 0 CHECK (tolerancia_minutos >= 0),
-    penalizacion_por_minuto DECIMAL(10,2) NOT NULL DEFAULT 0.50 CHECK (penalizacion_por_minuto >= 0)
+    penalizacion_por_minuto DECIMAL(10,2) NOT NULL DEFAULT 0.50 CHECK (penalizacion_por_minuto >= 0),
+    -- Ventana creada para un pedido concreto, no para el catálogo.
+    -- El desplegable de pedidos sólo ofrece las que están en FALSE.
+    es_ocasional BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 -- =========================
@@ -313,6 +316,31 @@ CREATE INDEX idx_incidentes_ubicacion ON incidentes USING GIST (ubicacion);
 CREATE INDEX idx_incidentes_tipo ON incidentes(tipo);
 CREATE INDEX idx_incidentes_fecha ON incidentes(fecha_hora);
 CREATE INDEX idx_incidentes_estado ON incidentes(estado);
+
+-- =========================
+-- 16b. OBSTACULOS
+-- =========================
+-- Obstrucciones fijas de la calzada: el cono que coloca un
+-- conductor en el punto donde hay un malestar, una obra, un árbol
+-- caído.
+--
+-- No van en `incidentes` porque un incidente es un hecho que pasa y
+-- se resuelve, con fecha. El cono se queda ahí y aparece en los mapas
+-- de las rutas siguientes hasta que alguien lo quita a mano.
+CREATE TABLE obstaculos (
+    id_obstaculo SERIAL PRIMARY KEY,
+    tipo VARCHAR(30) NOT NULL CHECK (tipo IN ('CONO','OBRA','ARBOL','BACHE','BLOQUEO_CALLE','OTRO')),
+    descripcion TEXT NOT NULL,
+    latitud DECIMAL(9,6) NOT NULL CHECK (latitud BETWEEN -13 AND -11),
+    longitud DECIMAL(9,6) NOT NULL CHECK (longitud BETWEEN -78 AND -76),
+    ubicacion GEOGRAPHY(Point,4326) NOT NULL,
+    nivel VARCHAR(10) NOT NULL DEFAULT 'MEDIO' CHECK (nivel IN ('ALTO','MEDIO','BAJO')),
+    id_usuario INT REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
+    fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    resuelto BOOLEAN NOT NULL DEFAULT FALSE
+);
+CREATE INDEX idx_obstaculos_ubicacion ON obstaculos USING GIST (ubicacion);
+CREATE INDEX idx_obstaculos_activos ON obstaculos(resuelto, fecha_registro);
 
 -- =========================
 -- 17. INDICADORES_RUTA

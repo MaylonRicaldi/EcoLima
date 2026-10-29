@@ -9,11 +9,14 @@ import {
   listarClientes,
   obtenerCliente,
   listarVentanasDisponibles,
+  crearVentanaTiempo,
 } from '../services/clientes'
 
 import MapaUbicador from '../components/MapaUbicador'
 import GestorVentanas from '../components/GestorVentanas'
 import Modal from '../components/Modal'
+
+import { consultarSaturacion } from '../services/operacion'
 
 import { getUsuario } from '../services/auth'
 import Esqueleto from '../components/Esqueleto'
@@ -32,6 +35,13 @@ const pedidoInicial = {
   estado: 'PENDIENTE',
 }
 
+function sugerir_hora(hora) {
+  /* El backend devuelve la hora como "HH:MM:SS" o como
+     "HH:MM:SS+00" según el caso. Para mostrarla se recorta. */
+  return String(hora).slice(0, 5)
+}
+
+
 function Pedidos() {
   // CONDUCTOR y CLIENTE sólo consultan: el backend filtra por fila y
   // no les permite crear ni editar pedidos.
@@ -46,6 +56,28 @@ function Pedidos() {
   const [formulario, setFormulario] = useState(pedidoInicial)
   const [editando, setEditando] = useState(null)
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
+
+  /* De dónde sale la ubicación de la entrega.
+
+     CLIENTE: se usa la que tiene registrada el cliente. Es lo
+              normal: el pedido va al local del cliente.
+     PROPIA:  el pedido va a otro punto (una sucursal, una obra, un
+              punto de recojo). Entonces hay que elegirla en el mapa.
+
+     Antes esto pasaba solo, según si el cliente traía coordenadas,
+     y era fácil no notar que la ubicación del pedido había cambiado.
+     Ahora es una decisión explícita del usuario. */
+  const [origenUbicacion, setOrigenUbicacion] = useState('CLIENTE')
+
+  /* Estado de saturación de la ventana elegida.
+     null = todavía no se ha consultado. */
+  const [saturacion, setSaturacion] = useState(null)
+  const [consultando, setConsultando] = useState(false)
+  const [creandoVentana, setCreandoVentana] = useState(false)
+  const [nuevaVentana, setNuevaVentana] = useState({
+    hora_inicio: '',
+    hora_fin: '',
+  })
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [mensaje, setMensaje] = useState('')
@@ -162,6 +194,51 @@ function Pedidos() {
   }
 
 
+  /* ¿El cliente tiene un punto registrado que se pueda usar? */
+  function clienteTieneUbicacion(cliente) {
+    return (
+      cliente &&
+      cliente.latitud !== null &&
+      cliente.latitud !== undefined &&
+      cliente.latitud !== '' &&
+      cliente.longitud !== null &&
+      cliente.longitud !== undefined &&
+      cliente.longitud !== ''
+    )
+  }
+
+
+  /* Cambia entre usar la ubicación del cliente y elegir una nueva.
+
+     Al volver a la del cliente, se copian sus datos. Al elegir una
+     nueva, se limpian las coordenadas para que quede claro que hay
+     que volver a marcar el punto, y no se arrastra el valor viejo
+     sin querer. */
+  function cambiarOrigenUbicacion(origen) {
+    setOrigenUbicacion(origen)
+
+    if (!clienteActual) {
+      return
+    }
+
+    if (origen === 'CLIENTE') {
+      usarUbicacionRegistrada()
+
+      return
+    }
+
+    setFormulario((actual) => ({
+      ...actual,
+      latitud: '',
+      longitud: '',
+    }))
+
+    setMensaje(
+      'Elija en el mapa dónde se entrega este pedido.'
+    )
+  }
+
+
   /* Al elegir un cliente se carga su ficha completa (el listado
      no trae coordenadas ni horario) y se muestran sus datos. */
   async function seleccionarCliente(id, autocompletar = false) {
@@ -175,10 +252,16 @@ function Pedidos() {
       (c) => String(c.id_cliente) === String(id)
     )
 
+    /* Al cambiar de cliente en un pedido nuevo, la ubicación vuelve
+       a la del cliente: es el caso normal y evita tener que elegir
+       el mismo punto una y otra vez. */
+    const autocompletarAhora =
+      autocompletar && origenUbicacion === 'CLIENTE'
+
     setFormulario((actual) => ({
       ...actual,
       id_cliente: id,
-      ...(autocompletar && enListado
+      ...(autocompletarAhora && enListado
         ? aplicarUbicacionCliente(enListado, actual)
         : {}),
     }))
@@ -192,13 +275,24 @@ function Pedidos() {
 
       setClienteActual(ficha)
 
-      if (autocompletar) {
+      if (autocompletarAhora) {
         /* Se conserva todo lo que ya tiene el formulario y sólo se
            pisan los campos de ubicación que trae la ficha. */
         setFormulario((actual) => ({
           ...actual,
           ...aplicarUbicacionCliente(ficha, actual),
         }))
+      }
+
+      /* Si el cliente no tiene punto registrado, avisar aquí evita
+         un error más adelante, al guardar. */
+      if (autocompletar && !clienteTieneUbicacion(ficha)) {
+        setOrigenUbicacion('PROPIA')
+
+        setMensaje(
+          `${ficha.nombre} no tiene ubicación registrada: ` +
+            'elija en el mapa dónde se entrega.'
+        )
       }
     } catch (err) {
       setClienteActual(enListado || null)
@@ -215,14 +309,32 @@ function Pedidos() {
   }
 
 
+  /* Al cambiar la ventana hay que volver a preguntar si hay hueco:
+     una franja puede estar libre y otra no. */
+  function manejarCambioVentana(event) {
+    setFormulario((actual) => ({
+      ...actual,
+      id_ventana_tiempo: event.target.value,
+    }))
+
+    revisarSaturacion(event.target.value)
+  }
+
+
   function manejarUbicacion(coordenadas) {
+    /* Elegir un punto en el mapa es elegir una ubicación propia para
+       la entrega. Si se estaba usando la del cliente, se cambia el
+       origen para que quede claro en qué modo está el formulario. */
+    setOrigenUbicacion('PROPIA')
+
     setFormulario((actual) => ({
       ...actual,
       latitud: String(coordenadas.latitud),
       longitud: String(coordenadas.longitud),
-      /* Elegir una dirección del buscador rellena el texto: es una
-         acción deliberada. Mover el marcador llega sin etiqueta y
-         no toca lo que el usuario escribió. */
+      /* Buscar una dirección, hacer clic o arrastrar el marcador
+         rellena el texto con la dirección de ese punto. Si la
+         respuesta del buscador no llegó, no se toca lo que ya
+         estaba escrito. */
       direccion_entrega: coordenadas.etiqueta
         ? coordenadas.etiqueta
         : actual.direccion_entrega,
@@ -235,26 +347,153 @@ function Pedidos() {
       return
     }
 
+    if (!clienteTieneUbicacion(clienteActual)) {
+      setOrigenUbicacion('PROPIA')
+
+      setMensaje(
+        'Este cliente no tiene ubicación registrada: elija ' +
+          'en el mapa dónde se entrega.'
+      )
+
+      return
+    }
+
     setFormulario((actual) => ({
       ...actual,
       direccion_entrega: clienteActual.direccion || '',
       referencia: clienteActual.referencia || '',
-      latitud:
-        clienteActual.latitud === null ||
-        clienteActual.latitud === undefined
-          ? actual.latitud
-          : String(clienteActual.latitud),
-      longitud:
-        clienteActual.longitud === null ||
-        clienteActual.longitud === undefined
-          ? actual.longitud
-          : String(clienteActual.longitud),
+      latitud: String(clienteActual.latitud),
+      longitud: String(clienteActual.longitud),
     }))
   }
+
+  /* ------------------------------------------------------------------ *
+ * Saturación de la ventana elegida
+ * ------------------------------------------------------------------ */
+
+  /* Pregunta al backend si la operación da abasto para la ventana
+     seleccionada.
+
+     Avisa, nunca bloquea: el pedido se registra igual con la ventana
+     que eligió el usuario. Si la elegida no tiene hueco, el backend
+     propone otra del catálogo y aquí se ofrece con un botón. */
+  async function revisarSaturacion(ventanaId) {
+    const ventana = ventanas.find(
+      (v) => String(v.id_ventana) === String(ventanaId)
+    )
+
+    if (!ventana) {
+      setSaturacion(null)
+      return
+    }
+
+    setConsultando(true)
+
+    try {
+      const datos = await consultarSaturacion({
+        fecha: new Date().toISOString().slice(0, 10),
+        hora_inicio: ventana.hora_inicio,
+        hora_fin: ventana.hora_fin,
+        peso_kg: Number(formulario.peso_kg) || 0,
+        volumen_m3: Number(formulario.volumen_m3) || 0,
+      })
+
+      setSaturacion(datos)
+    } catch {
+      /* Si no se puede consultar, no se bloquea el formulario: se
+         avisa de que no se pudo comprobar y ya está. */
+      setSaturacion(null)
+    } finally {
+      setConsultando(false)
+    }
+  }
+
+  /* Acepta la ventana que propuso el sistema. */
+  function aceptarVentanaSugerida() {
+    if (!saturacion?.ventana_sugerida) {
+      return
+    }
+
+    const sugerida = saturacion.ventana_sugerida
+
+    setFormulario((actual) => ({
+      ...actual,
+      id_ventana_tiempo: sugerida.id_ventana,
+    }))
+
+    revisarSaturacion(sugerida.id_ventana)
+
+    setMensaje(
+      `Ventana cambiada a ${sugerir_hora(sugerida.hora_inicio)}-` +
+        `${sugerir_hora(sugerida.hora_fin)}.`
+    )
+  }
+
+  /* Crea una ventana para este pedido y la usa.
+
+     La ventana nace marcada como ocasional: existe para esta
+     entrega y no se ofrece después a los demás pedidos. */
+  async function crearVentanaParaEstePedido(event) {
+    event.preventDefault()
+
+    const inicio = nuevaVentana.hora_inicio
+    const fin = nuevaVentana.hora_fin
+
+    if (!inicio || !fin) {
+      setError(
+        'Indique la hora de inicio y la de fin de la ventana.'
+      )
+      return
+    }
+
+    if (fin <= inicio) {
+      setError(
+        'La hora de fin debe ser posterior a la de inicio.'
+      )
+      return
+    }
+
+    try {
+      setConsultando(true)
+      setError('')
+
+      const creada = await crearVentanaTiempo({
+        hora_inicio: inicio,
+        hora_fin: fin,
+        es_ocasional: true,
+      })
+
+      await cargarReferencias()
+
+      setFormulario((actual) => ({
+        ...actual,
+        id_ventana_tiempo: creada.id_ventana,
+      }))
+
+      setCreandoVentana(false)
+      setNuevaVentana({ hora_inicio: '', hora_fin: '' })
+
+      setMensaje(
+        'Ventana creada para este pedido. No se oferecerá en los ' +
+          'demás pedidos.'
+      )
+
+      revisarSaturacion(creada.id_ventana)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setConsultando(false)
+    }
+  }
+
+  /* ------------------------------------------------------------------ *
+   * forms
+   * ------------------------------------------------------------------ */
 
   function limpiarFormulario() {
     setFormulario(pedidoInicial)
     setClienteActual(null)
+    setOrigenUbicacion('CLIENTE')
     setEditando(null)
     setMostrarFormulario(false)
   }
@@ -277,6 +516,7 @@ function Pedidos() {
 
     setFormulario(pedidoInicial)
     setEditando(null)
+    setOrigenUbicacion('CLIENTE')
     setMostrarFormulario(true)
 
     /* Se carga de entrada la ficha del primer cliente para que el
@@ -303,7 +543,14 @@ function Pedidos() {
     })
 
     /* Ficha del cliente sólo como referencia: la dirección y las
-       coordenadas del pedido no se tocan al editar. */
+       coordenadas del pedido no se tocan al editar.
+
+       Un pedido ya guardado siempre tiene ubicación propia: es la
+       que se eligió cuando se creó. Por eso al editar se muestra
+       como origen PROPIA y no se puede volver a la del cliente sin
+       decidirlo a mano. */
+    setOrigenUbicacion('PROPIA')
+
     setClienteActual(
       clientes.find((c) => c.id_cliente === pedido.id_cliente) ||
         null
@@ -325,7 +572,10 @@ function Pedidos() {
         formulario.longitud === ''
       ) {
         throw new Error(
-          'Elija la ubicación de la entrega en el mapa'
+          origenUbicacion === 'CLIENTE'
+            ? 'El cliente elegido no tiene ubicación registrada: ' +
+              'elija "En otro punto" y marque el punto en el mapa.'
+            : 'Elija el punto de entrega en el mapa.'
         )
       }
 
@@ -460,11 +710,14 @@ function Pedidos() {
               </div>
 
               <div className="campo">
-                <label>Ventana de tiempo</label>
+                <label htmlFor="ventana_pedido">
+                  Ventana de tiempo
+                </label>
                 <select
+                  id="ventana_pedido"
                   name="id_ventana_tiempo"
                   value={formulario.id_ventana_tiempo}
-                  onChange={manejarCambio}
+                  onChange={manejarCambioVentana}
                   required
                 >
                   {ventanas.length === 0 && (
@@ -486,7 +739,120 @@ function Pedidos() {
                     </option>
                   ))}
                 </select>
+
+                <button
+                  type="button"
+                  className="boton-enlace"
+                  onClick={() => setCreandoVentana(!creandoVentana)}
+                >
+                  {creandoVentana
+                    ? 'Cancelar'
+                    : '+ Crear una ventana para este pedido'}
+                </button>
+
+                {creandoVentana && (
+                  <div className="ventana-ocasional">
+                    <p className="ayuda-campo">
+                      Esta ventana se crea sólo para este pedido. No
+                      aparecerá en el desplegable de los demás: el
+                      horario de un caso especial no debe convertirse
+                      en la opción normal.
+                    </p>
+
+                    <div className="form-grid">
+                      <label>
+                        Desde
+                        <input
+                          type="time"
+                          value={nuevaVentana.hora_inicio}
+                          onChange={(e) =>
+                            setNuevaVentana((v) => ({
+                              ...v,
+                              hora_inicio: e.target.value,
+                            }))
+                          }
+                        />
+                      </label>
+
+                      <label>
+                        Hasta
+                        <input
+                          type="time"
+                          value={nuevaVentana.hora_fin}
+                          onChange={(e) =>
+                            setNuevaVentana((v) => ({
+                              ...v,
+                              hora_fin: e.target.value,
+                            }))
+                          }
+                        />
+                      </label>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="boton-secundario"
+                      onClick={crearVentanaParaEstePedido}
+                      disabled={consultando}
+                    >
+                      Crear y usar esta ventana
+                    </button>
+                  </div>
+                )}
               </div>
+
+              {/* Aviso de saturación: informa, no bloquea */}
+              {consultando && (
+                <p className="ayuda-campo">
+                  Comprobando si la operación tiene hueco...
+                </p>
+              )}
+
+              {saturacion && (
+                <div
+                  className={`aviso-saturacion ${saturacion.estado.toLowerCase()}`}
+                >
+                  <strong>
+                    {saturacion.estado === 'HOLGADO'
+                      ? 'Hay hueco en esa franja.'
+                      : saturacion.estado === 'AJUSTADO'
+                        ? 'Esa franja va justa.'
+                        : 'Esa franja está saturada.'}
+                  </strong>
+
+                  <ul>
+                    {saturacion.motivos.map((m) => (
+                      <li key={m}>{m}</li>
+                    ))}
+                  </ul>
+
+                  <small>
+                    {saturacion.conductores_disponibles}{' '}
+                    conductores libres ·{' '}
+                    {saturacion.horas_libres_totales} h ·{' '}
+                    {saturacion.tramos_en_ruta_afectados} tramo(s) de
+                    tráfico sobre rutas
+                  </small>
+
+                  {saturacion.ventana_sugerida && (
+                    <div className="sugerencia-ventana">
+                      <p>{saturacion.ventana_sugerida.motivo}</p>
+
+                      <button
+                        type="button"
+                        className="boton-secundario"
+                        onClick={aceptarVentanaSugerida}
+                      >
+                        Usar {sugerir_hora(
+                          saturacion.ventana_sugerida.hora_inicio
+                        )} - {sugerir_hora(
+                          saturacion.ventana_sugerida.hora_fin
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {clienteActual && (
                 <div className="campo campo-completo">
@@ -500,11 +866,16 @@ function Pedidos() {
                         type="button"
                         className="boton-secundario"
                         onClick={usarUbicacionRegistrada}
-                        disabled={editando !== null}
+                        disabled={
+                          editando !== null ||
+                          !clienteTieneUbicacion(clienteActual)
+                        }
                         title={
                           editando !== null
                             ? 'El pedido ya tiene su propia dirección'
-                            : 'Copiar la dirección y coordenadas registradas'
+                            : !clienteTieneUbicacion(clienteActual)
+                              ? 'Este cliente no tiene ubicación registrada'
+                              : 'Copiar la dirección y coordenadas registradas'
                         }
                       >
                         Usar ubicación registrada
@@ -574,40 +945,124 @@ function Pedidos() {
               )}
 
               <div className="campo campo-completo">
-                <label>
-                  Dirección y ubicación de la entrega
+                <label className="etiqueta-mapa">
+                  ¿Dónde se entrega este pedido?
+                </label>
+
+                {/* La elección es explícita: antes se decidía sola
+                    según si el cliente traía coordenadas, y era
+                    fácil no notar que la ubicación había cambiado. */}
+                <div
+                  className="selector-origen"
+                  role="radiogroup"
+                  aria-label="Origen de la ubicación de la entrega"
+                >
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={origenUbicacion === 'CLIENTE'}
+                    className={
+                      origenUbicacion === 'CLIENTE'
+                        ? 'opcion activa'
+                        : 'opcion'
+                    }
+                    disabled={
+                      !clienteActual ||
+                      !clienteTieneUbicacion(clienteActual)
+                    }
+                    onClick={() =>
+                      cambiarOrigenUbicacion('CLIENTE')
+                    }
+                  >
+                    <strong>En el local del cliente</strong>
+                    <span>
+                      {clienteActual
+                        ? clienteActual.direccion ||
+                          'Sin dirección registrada'
+                        : 'Elija primero un cliente'}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={origenUbicacion === 'PROPIA'}
+                    className={
+                      origenUbicacion === 'PROPIA'
+                        ? 'opcion activa'
+                        : 'opcion'
+                    }
+                    onClick={() => cambiarOrigenUbicacion('PROPIA')}
+                  >
+                    <strong>En otro punto</strong>
+                    <span>
+                      Sucursal, obra o punto de recojo: se elige
+                      en el mapa
+                    </span>
+                  </button>
+                </div>
+
+                {clienteActual &&
+                  !clienteTieneUbicacion(clienteActual) &&
+                  editando === null && (
+                    <p className="aviso-validacion">
+                      {clienteActual.nombre} no tiene ubicación
+                      registrada. Elija el punto de entrega en el
+                      mapa.
+                    </p>
+                  )}
+
+                <label
+                  className="etiqueta-mapa"
+                  htmlFor="direccion_entrega"
+                >
+                  Dirección de la entrega
                 </label>
 
                 <MapaUbicador
                   latitud={formulario.latitud}
                   longitud={formulario.longitud}
                   onCambio={manejarUbicacion}
+                  soloLectura={origenUbicacion === 'CLIENTE'}
                 />
 
                 <input
                   type="text"
+                  id="direccion_entrega"
                   name="direccion_entrega"
                   value={formulario.direccion_entrega}
                   onChange={manejarCambio}
                   placeholder="Dirección de la entrega"
                   required
+                  readOnly={origenUbicacion === 'CLIENTE'}
+                  className={
+                    origenUbicacion === 'CLIENTE' ? 'campo-fijado' : ''
+                  }
                 />
 
-                {clienteActual && (
-                  <small className="celda-sub">
-                    Viene de la ficha de {clienteActual.nombre}
-                  </small>
-                )}
+                <small className="celda-sub">
+                  {origenUbicacion === 'CLIENTE' && clienteActual
+                    ? `Es la ubicación registrada de ${clienteActual.nombre}.`
+                    : 'Punto elegido para este pedido.'}
+                </small>
               </div>
 
               <div className="campo campo-completo">
-                <label>Referencia</label>
+                <label htmlFor="referencia">Referencia</label>
                 <input
                   type="text"
+                  id="referencia"
                   name="referencia"
                   value={formulario.referencia}
                   onChange={manejarCambio}
+                  maxLength="200"
+                  placeholder="Frente a la bodega, portón azul"
                 />
+                <small className="ayuda-campo">
+                  {clienteActual?.referencia
+                    ? `En la ficha del cliente: ${clienteActual.referencia}`
+                    : 'Ayuda al conductor a llegar al punto.'}
+                </small>
               </div>
 
               <div className="campo">

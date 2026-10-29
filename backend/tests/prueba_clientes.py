@@ -14,9 +14,66 @@ sys.path.insert(0, ".")
 from cliente_http import Api, Resultado, token_de
 
 
+def id_de_rol(rol):
+    """Id de un usuario con ese rol, leído de la base.
+
+    Antes esta prueba fijaba los ids a mano (1 = admin, 3 = operador,
+    2 = conductor). Los ids no son de nadie: dependen del orden en que
+    se crearon las cuentas y ese orden cambia. Con los ids fijos, la
+    prueba mandaba tokens de usuarios que ya no existían y devolvía
+    cuatro 401 que parecían fallos de permisos cuando en realidad la
+    cuenta no estaba.
+
+    Se leen de la base, y si un rol no tiene cuenta se avisa y se
+    omite su parte, en vez de dar un fallo falso.
+    """
+    from sqlalchemy import text
+
+    from app.db.database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        return db.execute(
+            text("""
+                SELECT u.id_usuario
+                FROM usuarios u
+                INNER JOIN roles r ON r.id_rol = u.id_rol
+                WHERE r.nombre = :rol AND u.estado = 'ACTIVO'
+                ORDER BY u.id_usuario
+                LIMIT 1
+            """),
+            {"rol": rol},
+        ).scalar()
+    finally:
+        db.close()
+
+
 def main():
-    admin = Api(token_de(1, "ADMIN"))
-    operador = Api(token_de(3, "OPERADOR"))
+    id_admin = id_de_rol("ADMIN")
+    id_operador = id_de_rol("OPERADOR")
+    id_conductor = id_de_rol("CONDUCTOR")
+
+    if id_admin is None:
+        print("No hay ningun usuario con rol ADMIN. No se puede probar.")
+        return False
+
+    admin = Api(token_de(id_admin, "ADMIN"))
+
+    operador = (
+        Api(token_de(id_operador, "OPERADOR")) if id_operador else None
+    )
+
+    conductor = (
+        Api(token_de(id_conductor, "CONDUCTOR")) if id_conductor else None
+    )
+
+    for nombre, id_encontrado in (("OPERADOR", id_operador),
+                                  ("CONDUCTOR", id_conductor)):
+        if id_encontrado is None:
+            print(f"No hay usuario con rol {nombre}: se omite su parte.")
+        else:
+            print(f"Probando como {nombre} "
+                  f"(id_usuario {id_encontrado}).")
 
     r = Resultado("HU-05 clientes + permisos HU-01")
 
@@ -104,34 +161,38 @@ def main():
             st == 200 and camb["estado"] == "ACTIVO", f"status {st}")
 
     # ---------------- HU-01: permisos por rol ----------------
-    # OPERADOR puede gestionar clientes
-    st, _ = operador.get("/clientes")
-    r.check("OPERADOR lee clientes (permitido)", st == 200, f"status {st}")
-
-    # OPERADOR NO puede administrar usuarios
-    st, _ = operador.get("/usuarios")
-    r.check("OPERADOR NO lee usuarios (403)", st == 403, f"status {st}")
-
-    st, _ = operador.post("/usuarios", {"nombre": "X", "email": "x@x.com",
-                                        "password": "Aa123456", "id_rol": 2})
-    r.check("OPERADOR NO crea usuarios (403)", st == 403, f"status {st}")
-
     # Sin token
     anon = Api()
     st, _ = anon.get("/clientes")
     r.check("sin token -> 401", st == 401, f"status {st}")
 
-    # Token de rol inventado no debe existir en la matriz
-    # (se valida via /auth/admin-test que ya usaba require_roles)
-    conductor = Api(token_de(2, "CONDUCTOR"))
-    st, _ = conductor.get("/clientes")
-    r.check("CONDUCTOR NO lee clientes (403)", st == 403, f"status {st}")
+    # OPERADOR puede gestionar clientes
+    if operador is not None:
+        st, _ = operador.get("/clientes")
+        r.check("OPERADOR lee clientes (permitido)",
+                st == 200, f"status {st}")
 
-    st, _ = conductor.get("/vehiculos")
-    r.check("CONDUCTOR lee vehiculos (permitido)", st == 200, f"status {st}")
+        # OPERADOR NO puede administrar usuarios
+        st, _ = operador.get("/usuarios")
+        r.check("OPERADOR NO lee usuarios (403)", st == 403, f"status {st}")
 
-    st, _ = conductor.get("/usuarios")
-    r.check("CONDUCTOR NO lee usuarios (403)", st == 403, f"status {st}")
+        st, _ = operador.post("/usuarios", {
+            "nombre": "X", "email": "x@x.com",
+            "password": "Aa123456", "id_rol": 2,
+        })
+        r.check("OPERADOR NO crea usuarios (403)", st == 403, f"status {st}")
+
+    # El CONDUCTOR no gestiona clientes
+    if conductor is not None:
+        st, _ = conductor.get("/clientes")
+        r.check("CONDUCTOR NO lee clientes (403)", st == 403, f"status {st}")
+
+        st, _ = conductor.get("/vehiculos")
+        r.check("CONDUCTOR lee vehiculos (permitido)",
+                st == 200, f"status {st}")
+
+        st, _ = conductor.get("/usuarios")
+        r.check("CONDUCTOR NO lee usuarios (403)", st == 403, f"status {st}")
 
     # ---------------- limpieza ----------------
     print("\n  limpiando cliente de prueba...")

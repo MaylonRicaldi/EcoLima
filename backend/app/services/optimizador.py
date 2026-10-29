@@ -16,6 +16,10 @@ Restricciones implementadas (reglas de negocio):
   RN-012  horario operativo 05:00 - 22:00
   RN-015  neblina invernal 06:00-08:00 (+15% tiempo)
   RN-022  distancia vacía desde el punto de partida del conductor
+
+Además del tráfico (que encarece el tiempo), se esquivan los puntos
+con obstrucción en la calzada: el cono que coloca un conductor y los
+incidentes de nivel alto.
 """
 import math
 import random
@@ -23,6 +27,11 @@ import random
 from app.core import parametros as P
 from app.core import licencias as LIC
 from app.services import calculos as C
+
+# Radio en km dentro del cual un obstáculo obliga a desviarse. A
+# menos de esto el conductor tiene margen para rodearlo sin que
+# merezca la pena reordenar la ruta entera.
+RADIO_OBSTACULO_KM = 0.4
 from app.services import roads as R
 
 # D.S. 033-2012-MTC: el último dígito de la placa indica el día en que
@@ -153,7 +162,7 @@ class Conductor:
         'id_conductor', 'id_usuario', 'nombre_completo', 'horas_max',
         'horas_acumuladas', 'latitud', 'longitud',
         'disponibilidad_inicio', 'disponibilidad_fin',
-        'categorias_licencia', 'indice',
+        'categorias_licencia', 'indice', 'sale_del_local',
     )
 
     def __init__(self, fila, base):
@@ -167,6 +176,9 @@ class Conductor:
         # índice de la matriz de distancias por calzada para saber
         # desde dónde parte la ruta de este conductor.
         self.indice = -1
+
+        # True si hoy es su primer reparto: entonces sale del local.
+        self.sale_del_local = False
 
         # Licencias vigentes y no vencidas: determinan a qué
         # vehículos puede subir (app/core/licencias.py).
@@ -255,7 +267,8 @@ class ProblemaVRPTW:
 
     def __init__(
         self, pedidos, vehiculos, conductores, base, fecha,
-        trafico=None, incidentes=None,
+        trafico=None, incidentes=None, obstaculos=None,
+        primera_ruta=None,
     ):
         self.base = base
         self.fecha = fecha
@@ -270,6 +283,40 @@ class ProblemaVRPTW:
         self.conductores = [Conductor(c, base) for c in conductores]
         self.trafico = list(trafico or [])
         self.incidentes = list(incidentes or [])
+        self.obstaculos = list(obstaculos or [])
+
+        # Conductores que hoy todavía no han salido: de ellos sale
+        # el primer reparto desde el local.
+        self.primera_ruta = (
+            set(primera_ruta) if primera_ruta is not None else None
+        )
+
+        # Puntos que el recorrido tiene que esquivar por completo:
+        # el cono que puso un conductor y los incidentes de nivel
+        # alto. Se guardan aparte del tráfico porque aquí no se
+        # "paga más": se penaliza, pero el objetivo de la ruta no
+        # cambia por igual que el tráfico.
+        self._puntos_a_esquivar = []
+
+        for o in self.obstaculos:
+            if not o.get("resuelto", False):
+                self._puntos_a_esquivar.append({
+                    "latitud": float(o["latitud"]),
+                    "longitud": float(o["longitud"]),
+                    "peso": 1.0,
+                    "que": o.get("descripcion") or "obstáculo",
+                })
+
+        for i in self.incidentes:
+            if i.get("nivel") != "ALTO":
+                continue
+
+            self._puntos_a_esquivar.append({
+                "latitud": float(i["latitud"]),
+                "longitud": float(i["longitud"]),
+                "peso": 0.6,
+                "que": i.get("descripcion") or "incidente",
+            })
 
         for i, cond in enumerate(self.conductores):
             cond.indice = i
@@ -279,16 +326,48 @@ class ProblemaVRPTW:
         self.sin_conductor = []
 
         # La matriz de distancias cubre también los puntos de
-        # partida, no solo las paradas. Una ruta sale de la base o de
+        # partida, no solo las paradas. Una ruta sale del local o de
         # donde esté el conductor, y ese primer tramo también tiene
         # que medirse por calle.
         #
         #   índices 0 .. len(origenes)-1        puntos de partida
         #   índices len(origenes) .. fin        paradas de los pedidos
+        #
+        # El primer punto es siempre el local de la empresa.
         self._origenes = [(self.base['latitud'], self.base['longitud'])]
-        self._origenes += [
-            (c.latitud, c.longitud) for c in self.conductores
-        ]
+
+        # De dónde sale cada conductor.
+        #
+        #   - Si hoy todavía no tiene ruta, sale del local: el
+        #     vehículo estaba ahí antes de empezar el día.
+        #   - Si ya tiene ruta, sale de donde esté, que es lo que
+        #     evita el viaje en vacío entre reparto y reparto.
+        #
+        # Se guardan como índices y no como offsets fijos porque un
+        # conductor cuya primera parada sea el local comparte punto
+        # con el índice 0: si se metiera su propia fila, la matriz
+        # tendría dos filas con las mismas coordenadas y el cálculo
+        # se Lepsafearía.
+        self._indice_origen_por_conductor = {}
+
+        for cond in self.conductores:
+            desde_local = (
+                self.primera_ruta is not None
+                and cond.id_conductor in self.primera_ruta
+            )
+
+            cond.sale_del_local = desde_local
+
+            if desde_local:
+                self._indice_origen_por_conductor[cond.id_conductor] = 0
+
+                continue
+
+            punto = (cond.latitud, cond.longitud)
+
+            indice = self._buscar_o_agregar_origen(punto)
+
+            self._indice_origen_por_conductor[cond.id_conductor] = indice
 
         self._coordenadas = self._origenes + [
             (c.latitud, c.longitud) for c in self.clientes
@@ -329,12 +408,43 @@ class ProblemaVRPTW:
 
     # ---------------- matriz de distancias ----------------
 
+    def _buscar_o_agregar_origen(self, punto):
+        """Índice de un punto de partida, reutilizando si ya existe."""
+        for i, existente in enumerate(self._origenes):
+            if existente == punto:
+                return i
+
+        self._origenes.append(punto)
+
+        return len(self._origenes) - 1
+
     def _idx_origen(self, conductor):
-        """Índice del punto de partida: 0 es la base."""
+        """Índice del punto del que sale la ruta de ese conductor.
+
+        El local es siempre el 0. Un conductor que hoy hace su primer
+        reparto también sale de ahí; el resto, de donde esté.
+        """
         if conductor is None:
             return 0
 
-        return 1 + conductor.indice
+        return self._indice_origen_por_conductor.get(
+            conductor.id_conductor, 0
+        )
+
+    def _idx_retorno(self, conductor, hora_fin_minutos):
+        """Índice del punto al que vuelve el vehículo al terminar.
+
+        De noche el vehículo vuelve al local: no se queda el
+        conductor en la calle. De día regresa al punto del que
+        salió, que es lo que evita el viaje en vacío.
+        """
+        if conductor is None:
+            return 0
+
+        if hora_fin_minutos >= P.HORA_RETORNO_LOCAL * 60:
+            return 0
+
+        return self._idx_origen(conductor)
 
     def _idx_parada(self, cliente):
         """Índice de una parada dentro de la matriz."""
@@ -352,7 +462,7 @@ class ProblemaVRPTW:
     # ---------------- utilidades ----------------
 
     def _factor_tramo(self, cliente, minuto_absoluto):
-        """Factor de tiempo por tráfico y neblina."""
+        """Factor de tiempo por tráfico, neblina y obstáculos."""
         hora = int(minuto_absoluto // 60)
 
         factor = C.factor_congestion(
@@ -362,7 +472,42 @@ class ProblemaVRPTW:
         if C.es_franja_neblina(self.fecha, hora):
             factor *= 1 + P.PENALIZACION_NEBLINA
 
+        factor *= self._factor_obstaculo(cliente.latitud, cliente.longitud)
+
         return factor
+
+    def _factor_obstaculo(self, latitud, longitud):
+        """Cuánto encarece pasar por un cono o un incidente grave.
+
+        Los obstáculos de la calzada (el cono, una obra, un árbol
+        caído) no se esquivan con un rodeo pequeño como el tráfico:
+        están en el punto exacto. Por eso el multiplicador es alto,
+        para que el optimizador reúna las paradas de un lado y las
+        del otro antes que pasar por el punto bloqueado.
+
+        Un obstáculo a más de RADIO_OBSTACULO_KM no afecta: el
+        conductor tiene margen para esquivarlo sin penalización.
+        """
+        peor = 1.0
+
+        for punto in self._puntos_a_esquivar:
+            d = C.haversine_km(
+                latitud, longitud,
+                punto["latitud"], punto["longitud"],
+            )
+
+            if d > RADIO_OBSTACULO_KM:
+                continue
+
+            # Cuanto más cerca del punto, peor. A 200 m el tramo está
+            # prácticamente sobre el cono.
+            cercania = 1.0 - (d / RADIO_OBSTACULO_KM)
+
+            peso = punto["peso"] * (1.0 + 3.0 * cercania)
+
+            peor = max(peor, 1.0 + peso)
+
+        return peor
 
     def _tipos(self, ruta):
         return {c.tipo_producto for c in ruta.secuencia}
@@ -383,7 +528,18 @@ class ProblemaVRPTW:
     # ---------------- evaluación ----------------
 
     def evaluar_ruta(self, ruta, guardar_horas=False):
-        """Calcula distancia, tiempos, costo, CO2 y penalización."""
+        """Calcula distancia, tiempos, costo, CO2 y penalización.
+
+        `guardar_horas` deja en cada parada la hora a la que se llega,
+        con todo el modelo aplicado: velocidad según la hora del día,
+        tráfico, incidentes, conos, esperas por ventana y descanso.
+
+        Quien guarda el recorrido en la base debe pedirlo. Si cada uno
+        se calculara las horas por su cuenta, el mismo recorrido
+        llegaría a horas distintas según quién preguntara, y la
+        penalización de una fila podría contradecir a la hora de esa
+        misma fila.
+        """
         self._evaluar_geomeria(ruta)
 
         if not ruta.secuencia:
@@ -463,9 +619,15 @@ class ProblemaVRPTW:
         # Retorno al origen (RN-022)
         if ruta.secuencia:
             ultimo = ruta.secuencia[-1]
-            tramo = self._distancia(
-                indice_ori, self._idx_origen(cond)
+            # RN-022 y cierre de día: de noche el vehículo vuelve al
+            # local en vez de quedarse donde esté el conductor.
+            # El tramo de vuelta se mide hasta donde realmente
+            # acaba, que es lo que cambia el total.
+            destino_vuelta = self._idx_retorno(
+                cond, minuto + minutos_espera + minutos_serv
             )
+
+            tramo = self._distancia(indice_ori, destino_vuelta)
             distancia += tramo
             factor = self._factor_tramo(ultimo, minuto)
             minutos_cond += C.minutos_de_conduccion(
@@ -723,31 +885,31 @@ class ProblemaVRPTW:
 
     # ---------------- reoptimización de una ruta ----------------
 
-    def reoptimizar_secuencia(
-        self, vehiculo, conductor, orden_actual,
-        semilla=None, iteraciones=250, rng=None,
-    ):
-        """Recorre mejor las paradas de UNA ruta, sin cambiar de unidad.
+    def fijar_secuencia(self, vehiculo, conductor, orden):
+        """Arma una ruta con un orden dado, sin reordenar nada.
 
-        Es lo que hace la reoptimización de HU-08. La ruta ya existe
-        con su vehículo y su conductor asignados, y ambos se quedan
-        como están: lo que se corrige es el orden de visita, a la luz
-        del tráfico del momento y del resto de factores de la
-        consigna (ventanas de tiempo, perecederos, jornada, neblina).
+        Comprueba que los pedidos existan, que no estén repetidos y
+        que quepan en el vehículo (RN-006), y calcula distancia,
+        tiempos, esperas y penalizaciones de esa secuencia tal cual.
 
-        No se reparten pedidos entre otros vehículos ni se buscan
-        otros conductores. Si con esta unidad ya no se pueden atender
-        todos sus pedidos, no se inventa nada: se devuelve el motivo
-        para que la interfaz lo muestre.
+        Es lo que usan tanto la reoptimización como el adelante de un
+        pedido. La diferencia está en lo que se hace después:
 
-        Devuelve (ruta_optimizada, motivo). Si motivo no es None, la
-        ruta no se modificó.
+          - reoptimizar_secuencia parte de aquí y busca un orden mejor
+          - quien llama a esto fija el orden y lo respeta
+
+        Existe separada por un motivo concreto: si al adelantar un
+        pedido se pasara por aquí y luego por el recocido simulado, el
+        optimizador podría deshacer el adelanto que el usuario acaba
+        de confirmar. Lo que el usuario confirma se queda.
+
+        Devuelve (ruta, None) o (None, motivo).
         """
         por_id = {c.id_pedido: c for c in self.clientes}
 
         secuencia = []
 
-        for id_pedido in orden_actual:
+        for id_pedido in orden:
             cliente = por_id.get(id_pedido)
 
             if cliente is None:
@@ -784,20 +946,46 @@ class ProblemaVRPTW:
                 f"{vehiculo.capacidad_m3:.1f} m³"
             )
 
-        # La ruta se arma con el vehículo y el conductor que ya
-        # tenía, y se parte del orden actual como solución inicial.
-        #
-        # `puede_ordenar_por_ventana` se apaga a propósito: el
-        # reordenado automático por ventana de tiempo es para cuando
-        # se empieza de cero. Aquí la ruta ya tiene un orden hecho por
-        # el sistema y por el conductor, y respeta ese punto de
-        # partida para buscar solo a mejorarlo.
-        inicial = Ruta(vehiculo, conductor)
-        inicial.secuencia = list(secuencia)
-        inicial.recalcular_carga()
-        inicial.puede_ordenar_por_ventana = False
+        ruta = Ruta(vehiculo, conductor)
+        ruta.secuencia = list(secuencia)
+        ruta.recalcular_carga()
 
-        self.evaluar_ruta(inicial)
+        # El reordenado automático por ventana de tiempo es para
+        # cuando se empieza de cero. Una ruta que ya existe tiene un
+        # orden hecho por el sistema y por el conductor, y aquí ese
+        # orden es el que se quiere.
+        ruta.puede_ordenar_por_ventana = False
+
+        self.evaluar_ruta(ruta)
+
+        return ruta, None
+
+    def reoptimizar_secuencia(
+        self, vehiculo, conductor, orden_actual,
+        semilla=None, iteraciones=250, rng=None,
+    ):
+        """Recorre mejor las paradas de UNA ruta, sin cambiar de unidad.
+
+        Es lo que hace la reoptimización de HU-08. La ruta ya existe
+        con su vehículo y su conductor asignados, y ambos se quedan
+        como están: lo que se corrige es el orden de visita, a la luz
+        del tráfico del momento y del resto de factores de la
+        consigna (ventanas de tiempo, perecederos, jornada, neblina).
+
+        No se reparten pedidos entre otros vehículos ni se buscan
+        otros conductores. Si con esta unidad ya no se pueden atender
+        todos sus pedidos, no se inventa nada: se devuelve el motivo
+        para que la interfaz lo muestre.
+
+        Devuelve (ruta_optimizada, motivo). Si motivo no es None, la
+        ruta no se modificó.
+        """
+        inicial, motivo = self.fijar_secuencia(
+            vehiculo, conductor, orden_actual
+        )
+
+        if inicial is None:
+            return None, motivo
 
         if len(inicial.secuencia) < 2:
             # Con una sola parada no hay orden que corregir.

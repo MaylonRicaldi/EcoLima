@@ -34,6 +34,32 @@ function extraerError(data) {
   return 'Error en la solicitud'
 }
 
+/* Convierte un error de red en un mensaje que dice qué hacer.
+
+   fetch lanza cuando no hay nadie escuchando en el puerto, y el
+   navegador solo muestra "Failed to fetch". Este servicio no usa la
+   función solicitud() de los demás porque cada llamada hace su
+   fetch, así que el control va aquí. */
+async function pedir(url, opciones = {}) {
+  try {
+    const response = await fetch(`${API_URL}${url}`, {
+      ...opciones,
+      headers: obtenerHeaders(),
+    })
+
+    return await procesarRespuesta(response)
+  } catch (err) {
+    if (err instanceof TypeError) {
+      throw new Error(
+        'No se pudo conectar con el servidor. Revisa que el ' +
+          'backend esté corriendo en el puerto 8000.'
+      )
+    }
+
+    throw err
+  }
+}
+
 async function procesarRespuesta(response) {
   const data = await response.json()
 
@@ -53,51 +79,32 @@ async function procesarRespuesta(response) {
 }
 
 export async function listarVehiculos() {
-  const response = await fetch(`${API_URL}/vehiculos`, {
-    method: 'GET',
-    headers: obtenerHeaders(),
-  })
-
-  return procesarRespuesta(response)
+  return pedir('/vehiculos', { method: 'GET' })
 }
 
 export async function obtenerVehiculo(id) {
-  const response = await fetch(`${API_URL}/vehiculos/${id}`, {
-    method: 'GET',
-    headers: obtenerHeaders(),
-  })
-
-  return procesarRespuesta(response)
+  return pedir(`/vehiculos/${id}`, { method: 'GET' })
 }
 
 export async function crearVehiculo(datos) {
-  const response = await fetch(`${API_URL}/vehiculos`, {
+  return pedir('/vehiculos', {
     method: 'POST',
-    headers: obtenerHeaders(),
     body: JSON.stringify(datos),
   })
-
-  return procesarRespuesta(response)
 }
 
 export async function actualizarVehiculo(id, datos) {
-  const response = await fetch(`${API_URL}/vehiculos/${id}`, {
+  return pedir(`/vehiculos/${id}`, {
     method: 'PUT',
-    headers: obtenerHeaders(),
     body: JSON.stringify(datos),
   })
-
-  return procesarRespuesta(response)
 }
 
 export async function cambiarEstadoVehiculo(id, estado) {
-  const response = await fetch(`${API_URL}/vehiculos/${id}/estado`, {
+  return pedir(`/vehiculos/${id}/estado`, {
     method: 'PATCH',
-    headers: obtenerHeaders(),
     body: JSON.stringify({
       estado,
     }),
   })
-
-  return procesarRespuesta(response)
 }

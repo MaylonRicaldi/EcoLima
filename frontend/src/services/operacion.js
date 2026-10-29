@@ -28,14 +28,26 @@ function extraerError(data) {
 async function solicitud(endpoint, opciones = {}) {
   const token = getToken()
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
-    ...opciones,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...(opciones.headers || {}),
-    },
-  })
+  let response
+
+  try {
+    response = await fetch(`${API_URL}${endpoint}`, {
+      ...opciones,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...(opciones.headers || {}),
+      },
+    })
+  } catch {
+    // fetch lanza cuando no hay nadie escuchando en el puerto. Sin
+    // esto el error sale como "Failed to fetch", que no dice nada
+    // útil sobre qué hacer.
+    throw new Error(
+      'No se pudo conectar con el servidor. Revisa que el ' +
+        'backend esté corriendo en el puerto 8000.'
+    )
+  }
 
   const data = await response.json()
 
@@ -52,6 +64,104 @@ async function solicitud(endpoint, opciones = {}) {
   }
 
   return data
+}
+
+/* ---------------------------------------------------------------- *
+ * Local de la empresa
+ * ---------------------------------------------------------------- */
+
+/* Dónde está el local: de aquí salen los envíos y aquí vuelven los
+   vehículos de noche. */
+export async function obtenerLocal() {
+  return solicitud('/local')
+}
+
+/* Coloca el icono del local en el mapa. */
+export async function guardarLocal(datos) {
+  return solicitud('/local', {
+    method: 'PUT',
+    body: JSON.stringify(datos),
+  })
+}
+
+/* ---------------------------------------------------------------- *
+ * Mapa de rutas
+ * ---------------------------------------------------------------- */
+
+/* Rutas listas para dibujar, con identificador y color por
+   conductor. No se manda filtro: si quien entra es conductor, el
+   servidor devuelve sólo las suyas. */
+export async function obtenerMapaRutas(params = {}) {
+  const q = new URLSearchParams(
+    Object.entries(params).filter(([, v]) => v !== null && v !== undefined)
+  )
+
+  return solicitud(
+    `/mapa/rutas${q.toString() ? `?${q.toString()}` : ''}`
+  )
+}
+
+/* ---------------------------------------------------------------- *
+ * Saturación, obstáculos y operación (Sprint 03)
+ * ---------------------------------------------------------------- */
+
+/* Si la operación da abasto para esa ventana. Informa de capacidad
+   y de tráfico por separado. */
+export async function consultarSaturacion({
+  fecha,
+  hora_inicio,
+  hora_fin,
+  peso_kg = 0,
+  volumen_m3 = 0,
+}) {
+  const q = new URLSearchParams({
+    fecha,
+    hora_inicio,
+    hora_fin,
+    peso_kg: String(peso_kg || 0),
+    volumen_m3: String(volumen_m3 || 0),
+  })
+
+  return solicitud(`/operacion/saturacion?${q.toString()}`)
+}
+
+/* Ventana del catálogo que sí tiene hueco. El usuario decide si la
+   usa: el sistema propone, no impone. */
+export async function sugerirVentana(datos) {
+  return solicitud('/operacion/ventana-sugerida', {
+    method: 'POST',
+    body: JSON.stringify(datos),
+  })
+}
+
+/* ---------------------------------------------------------------- *
+ * Obstáculos de la calzada (el cono)
+ * ---------------------------------------------------------------- */
+
+export async function listarObstaculos(incluirResueltos = false) {
+  return solicitud(
+    `/obstaculos?incluir_resueltos=${incluirResueltos}`
+  )
+}
+
+export async function registrarObstaculo(datos) {
+  return solicitud('/obstaculos', {
+    method: 'POST',
+    body: JSON.stringify(datos),
+  })
+}
+
+export async function quitarObstaculo(id) {
+  return solicitud(`/obstaculos/${id}`, { method: 'DELETE' })
+}
+
+/* Genera el recorrido desde el punto con obstrucción. Conserva el
+   vehículo y el conductor de la ruta. */
+export async function optimizarDesdeObstaculo(id, datos = {}) {
+  return solicitud(`/obstaculos/${id}/optimizar-ruta`, {
+    method: 'POST',
+    body: JSON.stringify(datos),
+  })
 }
 
 /* ---------------------------------------------------------------- *
@@ -98,6 +208,44 @@ export async function actualizarEntrega(
     method: 'PATCH',
     body: JSON.stringify({ estado_entrega: estadoEntrega }),
   })
+}
+
+/* ---------------------------------------------------------------- *
+ * Encargar otra orden a una ruta en marcha
+ * ---------------------------------------------------------------- */
+
+/* Mete un pedido suelto en una ruta que el conductor ya está
+   haciendo. No crea otra ruta ni suelta lo que ya tenía: el pedido
+   entra al final de la secuencia y la respuesta trae la recomendación
+   de orden. */
+export async function encargarPedido(idRuta, idPedido) {
+  return solicitud(`/rutas/${idRuta}/pedidos`, {
+    method: 'POST',
+    body: JSON.stringify({ id_pedido: idPedido }),
+  })
+}
+
+/* Consulta el orden recomendado sin cambiar nada. */
+export async function consultarOrdenSugerido(idRuta, idPedido) {
+  return solicitud(
+    `/rutas/${idRuta}/pedidos/${idPedido}/orden-sugerido`
+  )
+}
+
+/* Aplica lo recomendado: pone ese pedido el primero de lo que falta.
+   Es la confirmación del usuario; hasta que no se llama, el orden no
+   cambia. */
+export async function anticiparPedido(idRuta, idPedido) {
+  return solicitud(`/rutas/${idRuta}/pedidos/${idPedido}/anticipar`, {
+    method: 'POST',
+  })
+}
+
+/* Los pedidos sueltos, para ofrecerlos como órdenes nuevas a un
+   conductor que ya va en camino. Viene del módulo Pedidos porque es
+   el mismo dato, no una copia. */
+export async function listarPedidos() {
+  return solicitud('/pedidos')
 }
 
 export async function evaluarReoptimizacion(idRuta) {

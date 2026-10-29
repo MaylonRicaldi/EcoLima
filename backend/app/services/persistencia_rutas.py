@@ -121,10 +121,38 @@ def persistir_optimizacion(
         # ---- paradas (ruta + orden + tipo) ----
         orden = 0
 
+        # Las horas las pone el optimizador, no esta función.
+        #
+        # Antes el recorrido se iba reconstruyendo parada a parada con
+        # la velocidad normal y sin tráfico, y con eso se escribían
+        # las horas estimadas. El resultado era una línea de tiempo
+        # distinta de la que el optimizador había usado para elegir el
+        # orden, y por eso una misma parada podía aparecer con horas
+        # diferentes en paradas_ruta y en ruta_pedidos, o con una
+        # penalización que no se correspondía con la hora de su
+        # propia fila.
+        #
+        # Pide las horas y usa las que venga: son las mismas con las
+        # que el optimizador costeó y ordenó.
+        problema.evaluar_ruta(ruta, guardar_horas=True)
+
         # Inicio
         origen = ruta.conductor
-        lat_i = origen.latitud if origen else problema.base['latitud']
-        lon_i = origen.longitud if origen else problema.base['longitud']
+        # El punto de partida guardado es el que el optimizador usó de
+        # verdad: el local si es el primer reparto del día, o donde
+        # esté el conductor. Leer origen.latitud a pelo pondría en
+        # el mapa un punto por el que el vehículo nunca pasó.
+        if origen is not None and getattr(
+            origen, 'sale_del_local', False
+        ):
+            lat_i = problema.base['latitud']
+            lon_i = problema.base['longitud']
+        elif origen is not None:
+            lat_i = origen.latitud
+            lon_i = origen.longitud
+        else:
+            lat_i = problema.base['latitud']
+            lon_i = problema.base['longitud']
 
         orden += 1
         db.execute(
@@ -170,13 +198,23 @@ def persistir_optimizacion(
                         "orden": orden,
                         "lat": lat_i,
                         "lon": lon_i,
-                        "hora": _hora_absoluta_a_timestamp(minuto, fecha),
+                        "hora": _hora_absoluta_a_timestamp(
+                            cliente.hora_llegada
+                            - int(C.minutos_de_servicio()),
+                            fecha,
+                        ),
                         "descanso": int(P.DESCANSO_OBLIGATORIO_HORAS * 60),
                     },
                 )
-                minuto += int(P.DESCANSO_OBLIGATORIO_HORAS * 60)
 
             orden += 1
+
+            # `hora_llegada` es el instante en que termina el servicio.
+            # La llegada es ese mismo momento menos lo que se estuvo
+            # parado: por eso se resta el tiempo de servicio.
+            hora_llegada = cliente.hora_llegada - int(
+                C.minutos_de_servicio()
+            )
 
             db.execute(
                 text("""
@@ -196,25 +234,12 @@ def persistir_optimizacion(
                     "lat": cliente.latitud,
                     "lon": cliente.longitud,
                     "hora": _hora_absoluta_a_timestamp(
-                        minuto + int(cliente.tiempo_espera), fecha
+                        hora_llegada, fecha
                     ),
                     "servicio": int(C.minutos_de_servicio()),
                     "espera": int(cliente.tiempo_espera),
                 },
             )
-
-            tramo = C.minutos_de_conduccion(
-                problema._distancia(
-                    problema._idx_origen(ruta.conductor),
-                    problema._idx_parada(cliente),
-                ) if pos == 0 else problema._distancia(
-                    problema._idx_parada(ruta.secuencia[pos - 1]),
-                    problema._idx_parada(cliente),
-                ),
-                P.VELOCIDAD_NORMAL_KMH,
-                1.0,
-            )
-            minuto += int(tramo) + int(cliente.tiempo_espera)
 
             # ruta_pedidos
             db.execute(
@@ -234,12 +259,14 @@ def persistir_optimizacion(
                     "id_pedido": cliente.id_pedido,
                     "orden": orden,
                     "hora": _hora_absoluta_a_timestamp(
-                        minuto + int(cliente.tiempo_espera), fecha
+                        hora_llegada, fecha
                     ),
                     "espera": int(cliente.tiempo_espera),
                     "penalizacion": cliente.penalizacion,
                 },
             )
+
+            minuto = cliente.hora_llegada
 
             # el pedido pasa a ASIGNADO
             db.execute(
@@ -355,6 +382,17 @@ def persistir_reoptimizacion(
     """
     entregas_cerradas = entregas_cerradas or {}
 
+    # Las horas las pone el optimizador, igual que en la
+    # planificación inicial. Antes esta función las recalculaba por su
+    # cuenta, a velocidad normal y sin tráfico, y por eso lo que se
+    # guardaba no cuadraba con lo que el optimizador había usado para
+    # decidir el orden: una fila podía decir a la vez "llegaste a las
+    # 08:29" y "te pasaste 7 minutos de la ventana".
+    #
+    # Se reevalúa la ruta tal cual está, sin reordenarla: sólo para
+    # que cada parada Guarde la hora con la que se costeó.
+    problema.evaluar_ruta(ruta, guardar_horas=True)
+
     distancia_base = _distancia_secuencial(problema)
 
     base_indicadores = {
@@ -393,8 +431,21 @@ def persistir_reoptimizacion(
     )
 
     origen = ruta.conductor
-    lat_i = origen.latitud if origen else problema.base['latitud']
-    lon_i = origen.longitud if origen else problema.base['longitud']
+    # El punto de partida guardado es el que el optimizador usó de
+    # verdad: el local si es el primer reparto del día, o donde
+    # esté el conductor. Leer origen.latitud a pelo pondría en el
+    # mapa un punto por el que el vehículo nunca pasó.
+    if origen is not None and getattr(
+        origen, 'sale_del_local', False
+    ):
+        lat_i = problema.base['latitud']
+        lon_i = problema.base['longitud']
+    elif origen is not None:
+        lat_i = origen.latitud
+        lon_i = origen.longitud
+    else:
+        lat_i = problema.base['latitud']
+        lon_i = problema.base['longitud']
 
     orden = 0
 
@@ -503,14 +554,22 @@ def persistir_reoptimizacion(
                     "orden": orden,
                     "lat": lat_i,
                     "lon": lon_i,
-                    "hora": _hora_absoluta_a_timestamp(minuto, fecha),
+                    "hora": _hora_absoluta_a_timestamp(
+                        cliente.hora_llegada - int(C.minutos_de_servicio()),
+                        fecha,
+                    ),
                     "descanso": int(P.DESCANSO_OBLIGATORIO_HORAS * 60),
                 },
             )
 
-            minuto += int(P.DESCANSO_OBLIGATORIO_HORAS * 60)
-
         orden += 1
+
+        # `hora_llegada` es el instante en que termina el servicio; la
+        # llegada es ese momento menos el tiempo de servicio. Es la
+        # misma cuenta que en la planificación inicial, y por las
+        # mismas razones: la hora la puso el optimizador, no un
+        # segundo cálculo hecho aquí.
+        hora_llegada = cliente.hora_llegada - int(C.minutos_de_servicio())
 
         db.execute(
             text("""
@@ -529,24 +588,10 @@ def persistir_reoptimizacion(
                 "orden": orden,
                 "lat": cliente.latitud,
                 "lon": cliente.longitud,
-                "hora": _hora_absoluta_a_timestamp(
-                    minuto + int(cliente.tiempo_espera), fecha
-                ),
+                "hora": _hora_absoluta_a_timestamp(hora_llegada, fecha),
                 "servicio": int(C.minutos_de_servicio()),
                 "espera": int(cliente.tiempo_espera),
             },
-        )
-
-        tramo = C.minutos_de_conduccion(
-            problema._distancia(
-                problema._idx_origen(ruta.conductor),
-                problema._idx_parada(cliente),
-            ) if pos == 0 else problema._distancia(
-                problema._idx_parada(ruta.secuencia[pos - 1]),
-                problema._idx_parada(cliente),
-            ),
-            P.VELOCIDAD_NORMAL_KMH,
-            1.0,
         )
 
         db.execute(
@@ -565,16 +610,18 @@ def persistir_reoptimizacion(
                 "id_ruta": id_ruta,
                 "id_pedido": cliente.id_pedido,
                 "orden": orden,
-                "hora": _hora_absoluta_a_timestamp(
-                    minuto + int(cliente.tiempo_espera), fecha
-                ),
+                # La penalización y la hora vienen del mismo cálculo.
+                # Antes iban por caminos separados y una fila podía
+                # decir a la vez "llegaste a las 08:29" y "te pasaste
+                # 7 minutos de la ventana", que son cosas distintas
+                # sobre la misma entrega.
+                "hora": _hora_absoluta_a_timestamp(hora_llegada, fecha),
                 "espera": int(cliente.tiempo_espera),
                 "penalizacion": cliente.penalizacion,
             },
         )
 
-        minuto += int(tramo) + int(cliente.tiempo_espera)
-
+        minuto = cliente.hora_llegada
     # ---- parada de fin ----
     orden += 1
 

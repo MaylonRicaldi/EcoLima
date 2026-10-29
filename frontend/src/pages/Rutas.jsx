@@ -11,13 +11,97 @@ import {
   actualizarEntrega,
   listarTrafico,
   listarIncidentes,
+  obtenerLocal,
+  guardarLocal,
+  listarObstaculos,
+  listarPedidos,
+  encargarPedido,
+  consultarOrdenSugerido,
+  anticiparPedido,
 } from '../services/operacion'
 import Esqueleto from '../components/Esqueleto'
+import SelectorPunto from '../components/SelectorPunto'
+
+
+/* Explica la recomendación en palabras.
+
+   Los motivos se calculan en el backend y llegan como código, para
+   que la explicación no pueda contradecir a la decisión. Aquí sólo
+   se traduce a lenguaje llano. */
+function explicarMotivo(r) {
+  const actual = r.actual
+  const nuevo = r.nuevo
+
+  if (!actual) {
+    return (
+      'Es la única entrega que queda: no hay nada que reordenar.'
+    )
+  }
+
+  const masCercano = nuevo.minutos < actual.minutos
+  const diferencia = Math.abs(nuevo.minutos - actual.minutos)
+
+  switch (r.motivo) {
+    case 'URGENTE_NUEVO':
+      return (
+        `El pedido #${nuevo.id_pedido} cierra a las ` +
+        `${nuevo.hora_fin} y desde ahí queda a ` +
+        `${nuevo.minutos} minutos. Se le está yendo la ventana, así ` +
+        `que conviene llevarlo antes que el #${actual.id_pedido}, ` +
+        `aunque esté más lejos.`
+      )
+
+    case 'URGENTE_ACTUAL':
+      return (
+        `El pedido #${actual.id_pedido} cierra a las ` +
+        `${actual.hora_fin} y se le está yendo la ventana. Aunque el ` +
+        `otro esté más cerca, conviene terminar este primero: ` +
+        `llegar tarde cuesta más que rodar un poco más.`
+      )
+
+    case 'MAS_CERCA':
+      return (
+        `Desde donde está el conductor, el pedido #${nuevo.id_pedido} ` +
+        `queda a ${nuevo.minutos} minutos y el #${actual.id_pedido} a ` +
+        `${actual.minutos}. ${diferencia.toFixed(0)} minutos menos de ` +
+        `camino, y ninguna de las dos se está yendo la ventana.`
+      )
+
+    default:
+      return masCercano
+        ? 'Está algo más cerca, pero la diferencia es pequeña.'
+        : `El pedido #${actual.id_pedido} está más cerca: ` +
+          `${actual.minutos} minutos contra ${nuevo.minutos}. ` +
+          `Ninguna de las dos se está yendo la ventana, así que se ` +
+          `termina primero la que ya venía.`
+  }
+}
 
 
 export default function Rutas() {
   const [rutas, setRutas] = useState([])
   const [rutaActual, setRutaActual] = useState(null)
+
+  // El local de la empresa y los conos de la calzada: se dibujan en
+  // el mapa de cada ruta.
+  const [local, setLocal] = useState(null)
+  const [obstaculos, setObstaculos] = useState([])
+  const [moviendoLocal, setMoviendoLocal] = useState(false)
+
+  /* Encargar otra orden a esta ruta.
+
+     Cuando el conductor ya va repartiendo y le llega un envío más,
+     la orden no se le cambia por sorpresa: el sistema dice cuál
+     convendría y el usuario confirma. De ahí los tres estados. */
+  const [pedidosSueltos, setPedidosSueltos] = useState([])
+  const [pedidoElegido, setPedidoElegido] = useState('')
+  const [recomendacion, setRecomendacion] = useState(null)
+  const [encargando, setEncargando] = useState(false)
+  const [nuevoLocal, setNuevoLocal] = useState({
+    latitud: '',
+    longitud: '',
+    direccion: '',
+  })
 
   // Una ruta cerrada es un registro histórico: no se le puede
   // corregir el recorrido ni cambiar el estado de sus entregas.
@@ -53,8 +137,18 @@ export default function Rutas() {
 
       setRutas(data)
 
-      if (data.length > 0) {
-        await seleccionarRuta(data[0].id_ruta)
+      // Las rutas que ya se realizaron son registro histórico, no
+      // trabajo pendiente. No se elige como ruta actual ninguna que
+      // ya esté cerrada: al abrir el sistema no puede caer una ruta
+      // hecha con sus entregas marcadas como pendientes, porque eso
+      // es lo que hacía que el mapa y el panel insistieran en la
+      // operación que ya terminó.
+      const activas = (data || []).filter(
+        (r) => r.estado !== 'COMPLETADA' && r.estado !== 'CANCELADA'
+      )
+
+      if (activas.length > 0) {
+        await seleccionarRuta(activas[0].id_ruta)
       } else {
         setRutaActual(null)
       }
@@ -68,16 +162,155 @@ export default function Rutas() {
 
   async function cargarOperacion() {
     try {
-      const [t, i] = await Promise.all([
+      const [t, i, l, o, p] = await Promise.all([
         listarTrafico(),
         listarIncidentes('ACTIVO'),
+        obtenerLocal(),
+        listarObstaculos(),
+        listarPedidos(),
       ])
 
       setTrafico(t)
       setIncidentes(i)
+      setLocal(l)
+      setObstaculos(o)
+
+      /* Los pedidos que todavía no están en ninguna ruta: los
+         candidatos a ser la orden nueva de un conductor. */
+      setPedidosSueltos(
+        (p || []).filter((x) => x.estado === 'PENDIENTE')
+      )
     } catch {
+      /* El mapa sigue dibujando la ruta aunque falten los datos de
+         contexto. Perder el local en pantalla es molesto, pero
+         vaciar la pantalla entera sería peor. */
       setTrafico([])
       setIncidentes([])
+      setObstaculos([])
+      setPedidosSueltos([])
+    }
+  }
+
+
+  /* Encarga el pedido elegido a esta ruta y guarda la recomendación.
+
+     El pedido entra al final de la secuencia. Lo de adelantarlo o no
+     es otra decisión, y también la confirma el usuario. */
+  async function encargarOrden() {
+    if (!rutaActual || !pedidoElegido) {
+      return
+    }
+
+    try {
+      setEncargando(true)
+      setError('')
+      setMensaje('')
+
+      const r = await encargarPedido(
+        rutaActual.id_ruta,
+        Number(pedidoElegido)
+      )
+
+      setRecomendacion(r.recomendacion)
+      setPedidoElegido('')
+
+      setMensaje(r.mensaje)
+
+      await seleccionarRuta(rutaActual.id_ruta)
+      await cargarOperacion()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setEncargando(false)
+    }
+  }
+
+
+  /* Consulta el orden recomendado sin meter el pedido. Sirve para
+     mirar antes de comprometerse. */
+  async function mirarOrdenSugerido() {
+    if (!rutaActual || !pedidoElegido) {
+      return
+    }
+
+    try {
+      setEncargando(true)
+      setError('')
+
+      setRecomendacion(
+        await consultarOrdenSugerido(
+          rutaActual.id_ruta,
+          Number(pedidoElegido)
+        )
+      )
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setEncargando(false)
+    }
+  }
+
+
+  async function aplicarAnticipacion() {
+    if (!rutaActual || !recomendacion) {
+      return
+    }
+
+    try {
+      setEncargando(true)
+      setError('')
+      setMensaje('')
+
+      const r = await anticiparPedido(
+        rutaActual.id_ruta,
+        recomendacion.nuevo.id_pedido
+      )
+
+      setRecomendacion(null)
+      setMensaje(r.mensaje)
+
+      await seleccionarRuta(rutaActual.id_ruta)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setEncargando(false)
+    }
+  }
+
+
+  /* Guarda el local donde el usuario lo colocó en el mapa. */
+  async function moverLocal(event) {
+    event.preventDefault()
+
+    try {
+      setError('')
+      setMensaje('')
+
+      const guardado = await guardarLocal({
+        direccion:
+          nuevoLocal.direccion ||
+          local?.direccion ||
+          'Local de la empresa',
+        latitud: Number(nuevoLocal.latitud),
+        longitud: Number(nuevoLocal.longitud),
+      })
+
+      setLocal({
+        ...local,
+        direccion: guardado.direccion,
+        latitud: guardado.latitud,
+        longitud: guardado.longitud,
+        origen: 'registrado',
+      })
+
+      setMoviendoLocal(false)
+
+      setMensaje(
+        'Local actualizado. Las rutas nuevas saldrán de aquí y los ' +
+          'vehículos volverán aquí de noche.'
+      )
+    } catch (err) {
+      setError(err.message)
     }
   }
 
@@ -527,6 +760,8 @@ export default function Rutas() {
               pedidos={rutaActual.pedidos}
               trafico={trafico}
               incidentes={incidentes}
+              local={local}
+              conos={obstaculos}
             />
 
             <ul className="leyenda-mapa">
@@ -549,6 +784,14 @@ export default function Rutas() {
                 Descanso
               </li>
               <li>
+                <span className="leyenda-punto local" />
+                Local (partida y retorno)
+              </li>
+              <li>
+                <span className="leyenda-punto cono" />
+                Cono en la calzada
+              </li>
+              <li>
                 <span
                   style={{ background: '#be123c' }}
                 />
@@ -567,6 +810,271 @@ export default function Rutas() {
                 Entregado
               </li>
             </ul>
+
+
+            {/* El local de la empresa.
+
+                Es el punto del que salen los envíos y al que vuelven
+                los vehículos de noche. Se muestra siempre para que
+                quede claro de dónde parte cada reparto, y se mueve
+                desde aquí porque las coordenadas no se escriben: se
+                marcan en el mapa. */}
+            <div className="local-panel">
+              <div className="local-panel-cabecera">
+                <div>
+                  <h3>Local de la empresa</h3>
+
+                  <p className="local-panel-linea">
+                    <strong>{local?.direccion}</strong>
+                  </p>
+
+                  <p className="local-panel-linea tenue">
+                    {local?.latitud !== null &&
+                    local?.latitud !== undefined
+                      ? `${local.latitud}, ${local.longitud}`
+                      : 'Sin localizar'}
+
+                    {local?.hora_retorno_local && (
+                      <>
+                        {' · de noche se vuelve aquí desde las '}
+
+                        {local.hora_retorno_local}
+                      </>
+                    )}
+                  </p>
+
+                  {local?.origen === 'respaldo' && (
+                    <p className="local-panel-aviso">
+                      Este punto es un valor de respaldo: todavía no
+                      se ha colocado el local en el mapa. Colóquelo
+                      para que las rutas salgan de verdad de su
+                      negocio.
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  className="boton-secundario"
+                  onClick={() => {
+                    setNuevoLocal({
+                      latitud: local?.latitud ?? '',
+                      longitud: local?.longitud ?? '',
+                      direccion: local?.direccion ?? '',
+                    })
+
+                    setMoviendoLocal(!moviendoLocal)
+                  }}
+                >
+                  {moviendoLocal
+                    ? 'Cancelar'
+                    : 'Mover el local'}
+                </button>
+              </div>
+
+
+              {moviendoLocal && (
+                <form
+                  onSubmit={moverLocal}
+                  className="local-panel-formulario"
+                >
+                  <p className="ayuda-accion">
+                    Haga clic en el mapa o arrastre el punto para
+                    indicar dónde está el local. Se guarda uno solo:
+                    todas las rutas saldrán de ahí.
+                  </p>
+
+                  <SelectorPunto
+                    latitud={nuevoLocal.latitud}
+                    longitud={nuevoLocal.longitud}
+                    onCambio={(p) =>
+                      setNuevoLocal((a) => ({ ...a, ...p }))
+                    }
+                    etiqueta="Local de la empresa"
+                    alto="16rem"
+                  />
+
+                  <label className="campo">
+                    Dirección del local
+
+                    <input
+                      type="text"
+                      value={nuevoLocal.direccion}
+                      onChange={(e) =>
+                        setNuevoLocal((a) => ({
+                          ...a,
+                          direccion: e.target.value,
+                        }))
+                      }
+                      maxLength="200"
+                      placeholder="Puerto de Callao, Av. San Martín"
+                    />
+                  </label>
+
+                  <button
+                    type="submit"
+                    className="boton-primario"
+                    disabled={
+                      nuevoLocal.latitud === '' ||
+                      nuevoLocal.latitud === null ||
+                      nuevoLocal.latitud === undefined
+                    }
+                  >
+                    Guardar local
+                  </button>
+                </form>
+              )}
+            </div>
+          </section>
+
+
+          <section className="encargar-orden">
+            <h2>Encargarle otra orden</h2>
+
+            <p className="ayuda-accion">
+              El envío entra en esta ruta, al final. No se le crea
+              otra ruta ni se suelta lo que ya lleva: un envío sólo
+              puede estar en una ruta. El orden no se cambia solo,
+              porque reordenarle el trabajo al conductor a sus espaldas
+              no lo hace este sistema en ningún otro sitio.
+            </p>
+
+            {pedidosSueltos.length === 0 ? (
+              <p>
+                No hay pedidos sueltos. Todos los pedidos pendientes
+                ya están en alguna ruta.
+              </p>
+            ) : (
+              <div className="encargar-controles">
+                <label className="campo">
+                  Pedido
+
+                  <select
+                    value={pedidoElegido}
+                    onChange={(e) => {
+                      setPedidoElegido(e.target.value)
+                      setRecomendacion(null)
+                    }}
+                  >
+                    <option value="">Elija un pedido</option>
+
+                    {pedidosSueltos.map((p) => (
+                      <option
+                        key={p.id_pedido}
+                        value={p.id_pedido}
+                      >
+                        #{p.id_pedido} · {p.direccion_entrega}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <div className="form-actions">
+                  <button
+                    type="button"
+                    className="boton-secundario"
+                    disabled={!pedidoElegido || encargando}
+                    onClick={mirarOrdenSugerido}
+                  >
+                    Ver qué orden conviene
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={!pedidoElegido || encargando}
+                    onClick={encargarOrden}
+                  >
+                    Encargar
+                  </button>
+                </div>
+              </div>
+            )}
+
+
+            {recomendacion && (
+              <div className="orden-sugerido">
+                <h3>
+                  {recomendacion.recomendacion === 'ANTICIPAR'
+                    ? 'Conviene adelantar este pedido'
+                    : 'Conviene seguir el orden actual'}
+                </h3>
+
+                <p className="orden-motivo">
+                  {explicarMotivo(recomendacion)}
+                </p>
+
+                {recomendacion.actual && (
+                  <div className="orden-comparacion">
+                    <div>
+                      <strong>La que viene ahora</strong>
+
+                      <span>
+                        #{recomendacion.actual.id_pedido}
+                      </span>
+
+                      <span>
+                        {recomendacion.actual.km} km ·{' '}
+                        {recomendacion.actual.minutos} min
+                      </span>
+
+                      <span>
+                        cierra a las {recomendacion.actual.hora_fin}
+                      </span>
+
+                      {recomendacion.actual.urgente && (
+                        <span className="marca-urgente">
+                          se le está yendo la ventana
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <strong>La orden nueva</strong>
+
+                      <span>
+                        #{recomendacion.nuevo.id_pedido}
+                      </span>
+
+                      <span>
+                        {recomendacion.nuevo.km} km ·{' '}
+                        {recomendacion.nuevo.minutos} min
+                      </span>
+
+                      <span>
+                        cierra a las {recomendacion.nuevo.hora_fin}
+                      </span>
+
+                      {recomendacion.nuevo.urgente && (
+                        <span className="marca-urgente">
+                          se le está yendo la ventana
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {recomendacion.recomendacion === 'ANTICIPAR' && (
+                  <div className="form-actions">
+                    <button
+                      type="button"
+                      className="boton-secundario"
+                      onClick={() => setRecomendacion(null)}
+                      disabled={encargando}
+                    >
+                      Dejarlo como está
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={encargando}
+                      onClick={aplicarAnticipacion}
+                    >
+                      Adelantarlo
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </section>
 
 

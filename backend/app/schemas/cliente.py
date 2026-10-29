@@ -160,6 +160,15 @@ class VentanaTiempoBase(BaseModel):
         decimal_places=2,
     )
 
+    # Ventana creada para un pedido concreto, no para el catálogo.
+    #
+    # El catálogo es lo que se ofrece al registrar cualquier pedido.
+    # Una ventana puntual existe porque un caso especial la necesitó,
+    # y no debe aparecer luego en el desplegable de los demás: haría
+    # que un horario de una entrega acabara siendo la opción normal
+    # para el resto.
+    es_ocasional: bool = False
+
     @field_validator("hora_inicio", "hora_fin", mode="before")
     @classmethod
     def validar_horario(cls, valor):

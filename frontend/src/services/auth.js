@@ -1,16 +1,29 @@
 const API_URL = 'http://localhost:8000'
 
 export async function login(email, password) {
-  const response = await fetch(`${API_URL}/auth/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      email,
-      password,
-    }),
-  })
+  let response
+
+  try {
+    response = await fetch(`${API_URL}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        password,
+      }),
+    })
+  } catch {
+    // fetch lanza cuando no hay nadie escuchando en el puerto. Sin
+    // esto el error sale como "Failed to fetch", que no dice nada
+    // útil sobre qué hacer: el backend está apagado, no es un
+    // problema de usuario ni de contraseña.
+    throw new Error(
+      'No se pudo conectar con el servidor. Revisa que el ' +
+        'backend esté corriendo en el puerto 8000.'
+    )
+  }
 
   const data = await response.json()
 

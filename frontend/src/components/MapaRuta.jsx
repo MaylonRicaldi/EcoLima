@@ -21,6 +21,33 @@ const COLOR_ENTREGA = {
   REPROGRAMADO: '#a78bfa',
 }
 
+/* Iconos dibujados con CSS y no con imágenes, por lo mismo que el
+   pin y el cono: así siempre aparecen y toman los colores del
+   proyecto. */
+const ICONO_LOCAL = L.divIcon({
+  className: 'pin-local',
+  html:
+    '<span class="local-cuerpo">' +
+    '<span class="local-techo"></span>' +
+    '<span class="local-puerta"></span>' +
+    '</span>',
+  iconSize: [32, 34],
+  iconAnchor: [16, 34],
+  popupAnchor: [0, -32],
+})
+
+const ICONO_CONO = L.divIcon({
+  className: 'cono-obstaculo',
+  html:
+    '<span class="cono-cuerpo">' +
+    '<span class="cono-banda"></span>' +
+    '<span class="cono-banda"></span>' +
+    '</span>',
+  iconSize: [24, 34],
+  iconAnchor: [12, 34],
+  popupAnchor: [0, -32],
+})
+
 
 /**
  * Mapa de rutas con Leaflet + OpenStreetMap (HU-07).
@@ -35,6 +62,8 @@ export default function MapaRuta({
   trafico = [],
   incidentes = [],
   altura = '26rem',
+  local = null,
+  conos = [],
 }) {
   const contenedor = useRef(null)
   const mapa = useRef(null)
@@ -42,6 +71,22 @@ export default function MapaRuta({
 
   useEffect(() => {
     if (!contenedor.current) {
+      return undefined
+    }
+
+    const cerrada =
+      ruta?.estado === 'COMPLETADA' || ruta?.estado === 'CANCELADA'
+
+    if (cerrada) {
+      /* Una ruta cerrada es un registro histórico, no operación en
+         curso. No se dibuja en el mapa: la que se ve operativa es la
+         que todavía tiene entregas por hacer, y la que ya se hizo se
+         cierra a sí misma y se queda como lo que es. */
+      if (capa.current) {
+        capa.current.remove()
+        capa.current = null
+      }
+
       return undefined
     }
 
@@ -108,6 +153,40 @@ export default function MapaRuta({
         )
         .openTooltip()
     }
+
+    // El local de la empresa. Aparece en todos los mapas: es el punto
+    // del que salen los envíos y al que vuelven los vehículos de
+    // noche, y sin él el mapa no dice de dónde ni a dónde va nada.
+    if (
+      local &&
+      local.latitud !== null &&
+      local.latitud !== undefined
+    ) {
+      L.marker([Number(local.latitud), Number(local.longitud)], {
+        icon: ICONO_LOCAL,
+        zIndexOffset: 800,
+      })
+        .bindPopup(
+          `<strong>${local.direccion || 'Local de la empresa'}</strong>` +
+            '<br/>Punto de partida y de retorno de los envíos'
+        )
+        .addTo(grupo)
+    }
+
+    // Conos de la calzada. Se dibujan como obstáculos aparte de las
+    // paradas: un cono no es una entrega, es algo que hay que
+    // esquivar, y por eso va en naranja y no en verde.
+    ;(conos ?? []).forEach((c) => {
+      L.marker([Number(c.latitud), Number(c.longitud)], {
+        icon: ICONO_CONO,
+        zIndexOffset: 850,
+      })
+        .bindPopup(
+          `<strong>${c.tipo === 'CONO' ? 'Cono' : c.tipo}</strong>` +
+            `<br/>${c.descripcion}`
+        )
+        .addTo(grupo)
+    })
 
     // Marcadores de cada parada
     paradas.forEach((p) => {

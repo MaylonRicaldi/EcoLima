@@ -66,6 +66,7 @@ COLUMNAS_VENTANA = """
     vt.hora_fin,
     vt.tolerancia_minutos,
     vt.penalizacion_por_minuto,
+    vt.es_ocasional,
     (
         SELECT COUNT(*)
         FROM pedidos p
@@ -121,6 +122,11 @@ def listar_ventanas_disponibles(
     pedidos asociados: el formulario de pedidos solo necesita las
     horas. Se conserva porque ya la consumia el frontend.
 
+    Solo devuelve el CATALOGO. Las ventanas marcadas como
+    ocasionales se crearon para un pedido concreto y no deben
+    ofrecerse para los demas: si no, el horario de una entrega
+    especial acabaria siendo la opcion normal de todos los pedidos.
+
     IMPORTANTE: esta ruta tiene dos segmentos, igual que
     "/ventanas-tiempo/{id_ventana}". FastAPI resuelve en orden de
     declaracion, asi que debe quedar ANTES o "disponibles" se
@@ -135,6 +141,7 @@ def listar_ventanas_disponibles(
                 vt.tolerancia_minutos,
                 vt.penalizacion_por_minuto
             FROM ventanas_tiempo vt
+            WHERE vt.es_ocasional = FALSE
             ORDER BY vt.hora_inicio, vt.hora_fin
         """)
     ).mappings().all()
@@ -158,13 +165,15 @@ def crear_ventana_tiempo(
                 hora_inicio,
                 hora_fin,
                 tolerancia_minutos,
-                penalizacion_por_minuto
+                penalizacion_por_minuto,
+                es_ocasional
             )
             VALUES (
                 CAST(:hora_inicio AS TIME),
                 CAST(:hora_fin AS TIME),
                 :tolerancia_minutos,
-                CAST(:penalizacion AS DECIMAL(10,2))
+                CAST(:penalizacion AS DECIMAL(10,2)),
+                :es_ocasional
             )
             RETURNING id_ventana
         """),
@@ -173,6 +182,7 @@ def crear_ventana_tiempo(
             "hora_fin": datos.hora_fin,
             "tolerancia_minutos": datos.tolerancia_minutos,
             "penalizacion": datos.penalizacion_por_minuto,
+            "es_ocasional": datos.es_ocasional,
         },
     ).scalar_one()
 

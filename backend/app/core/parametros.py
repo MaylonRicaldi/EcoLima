@@ -82,6 +82,55 @@ HORA_OPERATIVA_INICIO = 5
 HORA_OPERATIVA_FIN = 22
 
 # ---------------------------------------------------------------------------
+# Cierre de calle: a partir de esta hora el vehículo vuelve al local
+#
+# El pedido del negocio es que de noche los vehículos no terminen
+# el día en la calle: regresan al local. Por eso la vuelta de una ruta
+# que termina a partir de esta hora se calcula hasta el local y no
+# hasta el punto de partida.
+#
+# El valor es una decisión del negocio, no una regla del DDL: por eso
+# está aquí y no repartido por el código. 21:00 es una hora
+# prudente, pero cámbiala si la operación cierra más tarde.
+# ---------------------------------------------------------------------------
+HORA_RETORNO_LOCAL = 21
+
+# ---------------------------------------------------------------------------
+# Aviso de que una entrega se le está yendo la ventana
+#
+# Cuando a un conductor que ya va en camino se le encarga otra orden,
+# el sistema tiene que decidir si conviene adelantarla o si conviene
+# terminar primero la que ya tenía. Mandan dos cosas: la distancia y
+# el tiempo, y el tiempo gana.
+#
+# La penalización de verdad empieza cuando la llegada se pasa de
+# `hora_fin + tolerancia`. Aquí se avisa ANTES, con este margen, para
+# que todavía haya margen de corregir el recorrido: enterarse cuando
+# el daño está hecho no sirve de nada.
+#
+# Es una decisión del negocio. Si trabajan con margen, se sube; si
+# prefieren enterarse tarde, se baja a 0.
+# ---------------------------------------------------------------------------
+MARGEN_URGENCIA_VENTANA_MINUTOS = 30
+
+# ---------------------------------------------------------------------------
+# El local de la empresa
+#
+# Es el punto desde el que salen los envíos y al que vuelven los
+# vehículos de noche. Se guarda en la tabla `ubicaciones` con tipo
+# LOCAL_OPERATIVA y se coloca desde el mapa, no se escribe aquí.
+#
+# Este valor es sólo la referencia por si la tabla llegara vacía:
+# el Puerto de Callao. Si está vacío se usa y se avisa, para que no
+# se planifique en silencio desde un punto inventado.
+# ---------------------------------------------------------------------------
+LOCAL_RELLENO = {
+    'direccion': 'Puerto de Callao, Av. San Martín, Callao',
+    'latitud': -12.0550,
+    'longitud': -77.1430,
+}
+
+# ---------------------------------------------------------------------------
 # RN-015 - Neblina invernal (junio - setiembre), 06:00 - 08:00
 # Incrementa el tiempo de los tramos afectados en 15%
 # ---------------------------------------------------------------------------

@@ -186,15 +186,105 @@ def incidentes_activos(db):
 
 
 def punto_inicio_operativa(db):
-    """Coordenada de la base operativa: centro de San Juan de Lurigancho.
+    """El local de la empresa: de aquí salen y aquí vuelven los envíos.
 
-    La base de la empresa está en ese distrito; se usa como origen y
-    retorno de cada ruta cuando el conductor no tiene ubicación de inicio.
+    Se lee de la tabla `ubicaciones` con tipo LOCAL_OPERATIVA, que
+    se coloca desde el mapa. Antes era una constante escrita en el
+    código (el centro de San Juan de Lurigancho) y por eso cambiar
+    de local obligaba a tocar el backend.
+
+    Si la tabla no tuviera local, se cae al valor de respaldo y se
+    marca como tal: es preferible un punto aproximado y visible que
+    planificar en silencio desde un sitio inventado.
     """
+    fila = db.execute(
+        text("""
+            SELECT direccion, latitud, longitud
+            FROM ubicaciones
+            WHERE tipo = 'LOCAL_OPERATIVA'
+            LIMIT 1
+        """)
+    ).mappings().first()
+
+    if fila:
+        return {
+            'latitud': float(fila['latitud']),
+            'longitud': float(fila['longitud']),
+            'direccion': fila['direccion'],
+            'origen': 'registrado',
+        }
+
     return {
-        'latitud': -12.015,
-        'longitud': -77.005,
+        'latitud': P.LOCAL_RELLENO['latitud'],
+        'longitud': P.LOCAL_RELLENO['longitud'],
+        'direccion': P.LOCAL_RELLENO['direccion'],
+        'origen': 'respaldo',
     }
+
+
+def actualizar_local(db, direccion, latitud, longitud):
+    """Coloca el icono del local en el mapa.
+
+    Sólo puede haber un local, así que si ya existe se mueve en vez
+    de crear un segundo: con dos locales el sistema no sabría cuál
+    usar como origen, y cada ruta saldría de un sitio distinto.
+    """
+    db.execute(text("""
+        DELETE FROM ubicaciones WHERE tipo = 'LOCAL_OPERATIVA'
+    """))
+
+    fila = db.execute(
+        text("""
+            INSERT INTO ubicaciones (
+                direccion, referencia, latitud, longitud, geom, tipo
+            )
+            VALUES (
+                :direccion,
+                'Local de la empresa. Punto de partida y de retorno.',
+                :latitud, :longitud,
+                ST_SetSRID(
+                    ST_MakePoint(:longitud, :latitud), 4326
+                ),
+                'LOCAL_OPERATIVA'
+            )
+            RETURNING id_ubicacion, direccion, latitud, longitud
+        """),
+        {
+            "direccion": direccion,
+            "latitud": latitud,
+            "longitud": longitud,
+        },
+    ).mappings().first()
+
+    db.commit()
+
+    return dict(fila)
+
+
+def primera_ruta_del_conductor(db, fecha):
+    """Conductores que hoy todavía no tienen ninguna ruta asignada.
+
+    El primer reparto del día sale del local y no de donde esté el
+    conductor: el vehículo estaba en el local antes de empezar.
+
+    Se lee de las asignaciones de ese mismo día y no del estado del
+    conductor, porque el estado se vuelve a poner en DISPONIBLE al
+    cerrar la última ruta y no distingue entre "no ha salido hoy" y
+    "ya volvió al local": con el estado, un conductor que ya hizo
+    dos repartos seguiría pareciendo que va al primer.
+    """
+    filas = db.execute(
+        text("""
+            SELECT DISTINCT a.id_conductor
+            FROM asignaciones a
+            INNER JOIN rutas r ON r.id_ruta = a.id_ruta
+            WHERE r.fecha = :fecha
+              AND r.estado <> 'CANCELADA'
+        """),
+        {"fecha": fecha},
+    ).scalars().all()
+
+    return set(filas)
 
 
 def eliminar_planificacion_anterior(db, id_ruta):
@@ -322,6 +412,28 @@ def entregas_cerradas_de_ruta(db, id_ruta):
     ).mappings().all()
 
     return {f['id_pedido']: dict(f) for f in filas}
+
+
+def obstaculos_activos(db):
+    """Obstrucciones de la calzada que siguen vigentes.
+
+    Los obstáculos no caducan: el cono que se puso hoy sigue ahí la
+    semana que viene. Se quitan a mano, no por fecha.
+    """
+    return db.execute(
+        text("""
+            SELECT
+                id_obstaculo,
+                tipo,
+                descripcion,
+                latitud,
+                longitud,
+                nivel,
+                resuelto
+            FROM obstaculos
+            WHERE resuelto = FALSE
+        """)
+    ).mappings().all()
 
 
 def conductor_de_ruta(db, id_ruta):

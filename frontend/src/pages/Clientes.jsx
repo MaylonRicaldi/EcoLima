@@ -141,9 +141,12 @@ export default function Clientes() {
       ...actual,
       latitud: String(coordenadas.latitud),
       longitud: String(coordenadas.longitud),
-      /* Elegir una dirección del buscador rellena el texto: es una
-         acción deliberada. Mover el marcador llega sin etiqueta y
-         no toca lo que el usuario escribió. */
+      /* Elegir un punto en el mapa, buscar una dirección o arrastrar
+         el marcador rellena el texto con la dirección de ese punto.
+
+         Si la respuesta del buscador no llegó, llega sin etiqueta y
+         no se toca lo que el usuario escribió: perder una dirección
+         que ya estaba escrita sería peor que no escribirla. */
       direccion: coordenadas.etiqueta
         ? coordenadas.etiqueta
         : actual.direccion,

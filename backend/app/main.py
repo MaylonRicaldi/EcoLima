@@ -17,12 +17,15 @@ from app.api.operacion import (
     trafico_router,
     incidentes_router,
     evaluacion_router,
+    obstaculos_router,
+    operacion_router,
 )
 from app.api.indicadores import (
     router as indicadores_router,
     sostenibilidad_router,
     reportes_router,
 )
+from app.api.mapa import local_router, mapa_router
 
 app = FastAPI(
     title="EcoLogística Lima API",
@@ -49,6 +52,10 @@ app.include_router(rutas_router)
 app.include_router(asignaciones_router)
 app.include_router(trafico_router)
 app.include_router(incidentes_router)
+app.include_router(obstaculos_router)
+app.include_router(operacion_router)
+app.include_router(local_router)
+app.include_router(mapa_router)
 app.include_router(indicadores_router)
 app.include_router(sostenibilidad_router)
 app.include_router(reportes_router)

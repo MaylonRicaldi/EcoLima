@@ -24,6 +24,7 @@ from app.core.permisos import (
 from app.schemas.ruta import (
     AsignacionCreate,
     AsignacionEstadoUpdate,
+    EncargarPedidoRequest,
     EntregaEstadoUpdate,
     OptimizacionRespuesta,
     OptimizarRequest,
@@ -34,8 +35,10 @@ from app.schemas.ruta import (
 )
 from app.services import datos_optimizacion as D
 from app.services import optimizador as OPT
+from app.services import orden_sugerido as OS
 from app.services import persistencia_rutas as PR
 from app.services import roads as R
+from app.api.operacion import obstaculos_router
 
 
 router = APIRouter(
@@ -135,6 +138,7 @@ def optimizar_rutas(
 
     trafico = D.trafico_actual(db)
     incidentes = D.incidentes_activos(db)
+    obstaculos = D.obstaculos_activos(db)
 
     if trafico:
         advertencias.append(
@@ -146,11 +150,19 @@ def optimizar_rutas(
             f"Hay {len(incidentes)} incidentes activos registrados."
         )
 
+    if obstaculos:
+        advertencias.append(
+            f"Se esquivan {len(obstaculos)} obstrucción(es) de la "
+            f"calzada."
+        )
+
     t0 = _time.perf_counter()
 
     problema = OPT.ProblemaVRPTW(
         pedidos, elegibles, conductores, base, fecha,
         trafico=trafico, incidentes=incidentes,
+        obstaculos=obstaculos,
+        primera_ruta=D.primera_ruta_del_conductor(db, fecha),
     )
 
     rutas = problema.optimizar(
@@ -578,6 +590,8 @@ def reoptimizar_ruta(
         fecha=fecha,
         trafico=D.trafico_actual(db),
         incidentes=D.incidentes_activos(db),
+        obstaculos=D.obstaculos_activos(db),
+        primera_ruta=D.primera_ruta_del_conductor(db, fecha),
     )
 
     if not problema._usar_calles_reales:
@@ -637,7 +651,117 @@ def reoptimizar_ruta(
 
 
 # ---------------------------------------------------------------------------
-# Asignaciones: relación RUTA -> VEHÍCULO + CONDUCTOR
+# Optimizar desde un punto con obstrucción
+# ---------------------------------------------------------------------------
+
+
+@obstaculos_router.post(
+    "/{id_obstaculo}/optimizar-ruta",
+    response_model=ReoptimizacionRespuesta,
+)
+def optimizar_desde_obstaculo(
+    id_obstaculo: int,
+    datos: ReoptimizarRequest,
+    db: Session = Depends(get_db),
+    usuario=Depends(require_permiso(RUTAS, ESCRITURA)),
+):
+    """Genera el nuevo recorrido esquivando un obstáculo (HU-08).
+
+    Es lo que hace el conductor cuando pone el cono en un punto de su
+    ruta y pulsa "optimizar desde aquí". A partir de ese punto el
+    sistema rehace el recorrido de lo que queda por entregar, de modo
+    que no vuelva a pasar por ahí.
+
+    Lo que se mantiene, como en cualquier corrección de recorrido:
+
+      - el vehículo, no se cambia de unidad
+      - el conductor, no se cambia de persona
+      - los pedidos, ninguno se pierde ni se reparte
+      - las entregas ya cerradas, que quedan como registro
+
+    El cono NO se quita. Sigue en la calzada y aparece en los mapas
+    de las rutas siguientes hasta que alguien lo elimine a mano.
+    """
+    t0 = _time.perf_counter()
+
+    obstaculo = db.execute(
+        text("""
+            SELECT id_obstaculo, tipo, descripcion, latitud,
+                   longitud, nivel
+            FROM obstaculos
+            WHERE id_obstaculo = :id
+        """),
+        {"id": id_obstaculo},
+    ).mappings().first()
+
+    if not obstaculo:
+        raise HTTPException(
+            status_code=404,
+            detail="El obstáculo no existe",
+        )
+
+    # La ruta que hay que rehacer es la primera activa que tiene
+    # el obstáculo encima de su recorrido.
+    id_ruta = db.execute(
+        text("""
+            SELECT r.id_ruta
+            FROM rutas r
+            INNER JOIN paradas_ruta pr ON pr.id_ruta = r.id_ruta
+            WHERE r.estado IN ('PLANIFICADA','EN_CURSO','REOPTIMIZADA')
+              AND pr.tipo_parada = 'ENTREGA'
+              AND EXISTS (
+                SELECT 1 FROM ruta_pedidos rp
+                WHERE rp.id_ruta = r.id_ruta
+                  AND rp.estado_entrega = 'PENDIENTE'
+              )
+            ORDER BY
+                abs(
+                    pr.latitud - :latitud
+                ) + abs(pr.longitud - :longitud),
+                r.id_ruta
+            LIMIT 1
+        """),
+        {
+            "latitud": float(obstaculo["latitud"]),
+            "longitud": float(obstaculo["longitud"]),
+        },
+    ).scalar()
+
+    if not id_ruta:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "No hay ninguna ruta activa con entregas pendientes "
+                "cerca del obstáculo. El cono queda registrado y se "
+                "tendrá en cuenta en la próxima optimización."
+            ),
+        )
+
+    # Se reutiliza la corrección de recorrido, que ya conserva
+    # vehículo, conductor, pedidos y entregas cerradas.
+    respuesta = reoptimizar_ruta(
+        id_ruta,
+        ReoptimizarRequest(
+            iteraciones=datos.iteraciones,
+            semilla=datos.semilla,
+            motivo=(
+                datos.motivo
+                or f"Obstáculo #{id_obstaculo} ({obstaculo['tipo']}) "
+                   f"en el recorrido"
+            ),
+        ),
+        db,
+        usuario,
+    )
+
+    respuesta.advertencias.append(
+        f"El cono se mantiene en la calzada: seguirá apareciendo en "
+        f"los mapas hasta que alguien lo quite"
+    )
+
+    return respuesta
+
+
 # ---------------------------------------------------------------------------
 
 asignaciones_router = APIRouter(
@@ -861,6 +985,373 @@ def cambiar_estado_asignacion(
             {"id": id_asignacion},
         ).mappings().first()
     )
+
+
+# ---------------------------------------------------------------------------
+# Encargar otra orden a una ruta que ya está en marcha
+# ---------------------------------------------------------------------------
+#
+# Un pedido no puede estar en dos rutas (uq_ruta_pedidos_pedido es
+# único sobre id_pedido), así que encargarle a un conductor una orden
+# nueva significa meterla en la ruta que ya está haciendo, no abrirle
+# otra.
+#
+# El orden de las paradas no se cambia solo. Se añade el pedido al
+# final, se dice cuál sería el buen orden y deja que el usuario lo
+# confirme: reordenarle el trabajo a un conductor a sus espaldas es
+# justo lo que este sistema no hace en ningún sitio más.
+
+
+@router.post("/{id_ruta}/pedidos")
+def encargar_pedido(
+    id_ruta: int,
+    datos: EncargarPedidoRequest,
+    db: Session = Depends(get_db),
+    usuario=Depends(require_permiso(RUTAS, ESCRITURA)),
+):
+    """Mete un pedido suelto en una ruta en marcha y dice qué hacer.
+
+    La respuesta trae el pedido ya en la ruta (al final de la
+    secuencia) y la recomendación de orden con los números que la
+    sostienen. Aplicarla es una llamada aparte.
+    """
+    require_entrega_de_ruta(usuario, db, id_ruta)
+
+    ruta = db.execute(
+        text("SELECT estado, fecha FROM rutas WHERE id_ruta = :id"),
+        {"id": id_ruta},
+    ).mappings().first()
+
+    if not ruta:
+        raise HTTPException(
+            status_code=404, detail="La ruta no existe"
+        )
+
+    # Una ruta cerrada es un registro histórico. Encargarle más pedidos
+    # no tiene sentido: ya no hay nadie repartiendo.
+    if ruta["estado"] in ('COMPLETADA', 'CANCELADA'):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"La ruta está {ruta['estado'].lower()} y ya no "
+                f"acepta pedidos."
+            ),
+        )
+
+    pedido = db.execute(
+        text("""
+            SELECT p.id_pedido, p.estado, p.id_ventana_tiempo,
+                   rp.id_ruta AS id_ruta_actual
+            FROM pedidos p
+            LEFT JOIN ruta_pedidos rp
+                ON rp.id_pedido = p.id_pedido
+            WHERE p.id_pedido = :id
+        """),
+        {"id": datos.id_pedido},
+    ).mappings().first()
+
+    if pedido is None:
+        raise HTTPException(
+            status_code=404, detail="El pedido no existe"
+        )
+
+    if pedido["estado"] not in ('PENDIENTE', 'ASIGNADO'):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"El pedido está {pedido['estado'].lower()} y no se "
+                f"puede encargar."
+            ),
+        )
+
+    # La unicidad de ruta_pedidos.id_pedido ya lo impide en la base,
+    # pero avisar con un 409 intelligible es mejor que dejar que
+    # reviente un INSERT con un error de índice.
+    if pedido["id_ruta_actual"] is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"El pedido ya está en la ruta "
+                f"{pedido['id_ruta_actual']} y no se puede volver a "
+                f"encargar. Un envío sólo puede estar en una ruta."
+            ),
+        )
+
+    ventana = db.execute(
+        text("""
+            SELECT vt.hora_inicio, vt.hora_fin, r.fecha
+            FROM ventanas_tiempo vt, rutas r
+            WHERE vt.id_ventana = :id_ventana AND r.id_ruta = :id_ruta
+        """),
+        {"id_ventana": pedido["id_ventana_tiempo"], "id_ruta": id_ruta},
+    ).mappings().first()
+
+    # Si la ventana ya cerró, encargar el pedido es añadir una entrega
+    # que va a llegar tarde seguro. Se avisa en vez de aceptar el
+    # pedido: reponerlo es trabajo de quien decide, no del sistema.
+    if ventana and ventana["hora_fin"] < ventana["hora_inicio"]:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "La ventana de entrega del pedido no es válida."
+            ),
+        )
+
+    siguiente = db.execute(
+        text("""
+            SELECT COALESCE(MAX(orden_visita), 0) + 1
+            FROM ruta_pedidos WHERE id_ruta = :id
+        """),
+        {"id": id_ruta},
+    ).scalar()
+
+    # La recomendación se calcula ANTES de insertar nada.
+    #
+    # Da igual que se calcule antes o después: la siguiente entrega
+    # pendiente es la misma con el pedido dentro o fuera, porque el
+    # nuevo entra al final. Pero si se calculase después y fallara
+    # (por ejemplo, si el motor de rutas no responde de la manera
+    # esperada), el pedido quedaría ya en la ruta sin que nadie lo
+    # supiera: un 500 en pantalla y un envío que se ha encargado solo.
+    # Así se calcula primero y, si algo falla, no se inserta nada.
+    recomendacion = OS.evaluar(db, id_ruta, datos.id_pedido)
+
+    db.execute(
+        text("""
+            INSERT INTO ruta_pedidos (
+                id_ruta, id_pedido, orden_visita, estado_entrega
+            )
+            VALUES (:id_ruta, :id_pedido, :orden, 'PENDIENTE')
+        """),
+        {
+            "id_ruta": id_ruta,
+            "id_pedido": datos.id_pedido,
+            "orden": siguiente,
+        },
+    )
+
+    db.execute(
+        text("""
+            UPDATE pedidos SET estado = 'ASIGNADO'
+            WHERE id_pedido = :id AND estado = 'PENDIENTE'
+        """),
+        {"id": datos.id_pedido},
+    )
+
+    db.execute(
+        text("""
+            UPDATE rutas SET estado = 'EN_CURSO'
+            WHERE id_ruta = :id AND estado = 'PLANIFICADA'
+        """),
+        {"id": id_ruta},
+    )
+
+    db.commit()
+
+    return {
+        "id_ruta": id_ruta,
+        "id_pedido": datos.id_pedido,
+        "orden_actual": siguiente,
+        "recomendacion": recomendacion,
+        "mensaje": (
+            "Pedido encargado al conductor. Revise el orden "
+            "sugerido antes de aplicarlo."
+        ),
+    }
+
+
+@router.post("/{id_ruta}/pedidos/{id_pedido}/anticipar")
+def anticipar_pedido(
+    id_ruta: int,
+    id_pedido: int,
+    db: Session = Depends(get_db),
+    usuario=Depends(require_permiso(RUTAS, ESCRITURA)),
+):
+    """Pone este pedido el primero de lo que falta por entregar.
+
+    Es la confirmación del usuario: hasta que no llama a esto, el
+    orden no cambia. El resto de la secuencia se mantiene igual.
+    """
+    require_entrega_de_ruta(usuario, db, id_ruta)
+
+    pendientes = db.execute(
+        text("""
+            SELECT id_pedido, orden_visita
+            FROM ruta_pedidos
+            WHERE id_ruta = :id_ruta
+              AND estado_entrega = 'PENDIENTE'
+            ORDER BY orden_visita
+        """),
+        {"id_ruta": id_ruta},
+    ).mappings().all()
+
+    if not any(p["id_pedido"] == id_pedido for p in pendientes):
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "El pedido no está pendiente en esta ruta. Una "
+                "entrega ya cerrada no se mueve."
+            ),
+        )
+
+    if len(pendientes) < 2:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Es la única entrega que falta: no hay nada que "
+                "adelantar."
+            ),
+        )
+
+    primero = pendientes[0]
+
+    if primero["id_pedido"] == id_pedido:
+        return {
+            "id_ruta": id_ruta,
+            "id_pedido": id_pedido,
+            "cambiado": False,
+            "mensaje": "Ese pedido ya era el primero.",
+        }
+
+    suyo = next(
+        p for p in pendientes if p["id_pedido"] == id_pedido
+    )
+
+    # Se intercambian las dos posiciones: el adelantado coge el número
+    # del primero, y el primero se queda con el que tenía el adelantado.
+    #
+    # El segundo UPDATE usa el número que tenía el adelantado, NO el
+    # del primero. Con el número del primero los dos se quedarían con
+    # el mismo orden y el resultado dependería de cómo los ordenase
+    # la base: el pedido se vería en el sitio correcto por casualidad,
+    # no por razón.
+    #
+    # Se escriben los dos antes de confirmar. `orden_visita` no tiene
+    # restricción de unicidad, así que durante un instante hay dos
+    # pedidos con el mismo número, y a continuación cada uno queda con
+    # el suyo.
+    db.execute(
+        text("""
+            UPDATE ruta_pedidos SET orden_visita = :nuevo
+            WHERE id_ruta = :id_ruta AND id_pedido = :id_pedido
+        """),
+        {
+            "nuevo": primero["orden_visita"],
+            "id_ruta": id_ruta,
+            "id_pedido": id_pedido,
+        },
+    )
+
+    db.execute(
+        text("""
+            UPDATE ruta_pedidos SET orden_visita = :anterior
+            WHERE id_ruta = :id_ruta AND id_pedido = :id_pedido
+        """),
+        {
+            "anterior": suyo["orden_visita"],
+            "id_ruta": id_ruta,
+            "id_pedido": primero["id_pedido"],
+        },
+    )
+
+    db.commit()
+
+    # El recorrido cambia de sitio, así que las paradas y las horas
+    # estimadas dejan de valer: hay que recalcularlas.
+    #
+    # Se recalcula con `fijar_secuencia` y NO con la reoptimización.
+    # La reoptimización busca un orden mejor y podría deshacer justo
+    # el adelanto que el usuario acaba de confirmar. Aquí el orden es
+    # el que se decidió y se respeta.
+    recomputado = _recalcular_orden(db, id_ruta)
+
+    if recomputado.get("motivo"):
+        raise HTTPException(status_code=409, detail=recomputado["motivo"])
+
+    return {
+        "id_ruta": id_ruta,
+        "id_pedido": id_pedido,
+        "cambiado": True,
+        "orden": recomputado.get("orden_pedidos", []),
+        "distancia_km": recomputado.get("distancia_km"),
+        "duracion_minutos": recomputado.get("duracion_minutos"),
+        "mensaje": (
+            "Pedido adelantado: pasa a ser el siguiente. El que "
+            "venía ahora vuelve a la cola, y los demás no se tocan."
+        ),
+    }
+
+
+def _recalcular_orden(db, id_ruta):
+    """Recalcula distancia y tiempos de una ruta sin tocar el orden.
+
+    Se usa cuando el orden ya está decidido y lo único que hace falta
+    es volver a medir: añadir un pedido al final o adelantar uno. El
+    recorrido se recalcula entero porque las horas estimadas de cada
+    parada dependen de todas las anteriores.
+    """
+    fila = db.execute(
+        text("SELECT fecha FROM rutas WHERE id_ruta = :id"),
+        {"id": id_ruta},
+    ).mappings().first()
+
+    vehiculo = D.vehiculo_de_ruta(db, id_ruta)
+    conductor = D.conductor_de_ruta(db, id_ruta)
+
+    if vehiculo is None or conductor is None:
+        return {
+            "motivo": (
+                "La ruta no tiene vehículo ni conductor asignados, así "
+                "que no se puede recalcular su recorrido."
+            )
+        }
+
+    pedidos = D.pedidos_de_ruta(db, id_ruta)
+    cerrados = D.entregas_cerradas_de_ruta(db, id_ruta)
+
+    pendientes = [p for p in pedidos if p['id_pedido'] not in cerrados]
+
+    if not pendientes:
+        return {"motivo": "La ruta ya no tiene pedidos por entregar."}
+
+    problema = OPT.ProblemaVRPTW(
+        pedidos=pendientes,
+        vehiculos=[vehiculo],
+        conductores=[conductor],
+        base=D.punto_inicio_operativa(db),
+        fecha=fila['fecha'],
+        trafico=D.trafico_actual(db),
+        incidentes=D.incidentes_activos(db),
+        obstaculos=D.obstaculos_activos(db),
+        primera_ruta=D.primera_ruta_del_conductor(db, fila['fecha']),
+    )
+
+    ruta_fijada, motivo = problema.fijar_secuencia(
+        problema.vehiculos[0],
+        problema.conductores[0],
+        [p['id_pedido'] for p in pendientes],
+    )
+
+    if ruta_fijada is None:
+        return {"motivo": motivo}
+
+    return PR.persistir_reoptimizacion(
+        db, id_ruta, problema, ruta_fijada, fila['fecha'],
+        entregas_cerradas=cerrados,
+    )
+
+
+@router.get("/{id_ruta}/pedidos/{id_pedido}/orden-sugerido")
+def orden_sugerido(
+    id_ruta: int,
+    id_pedido: int,
+    db: Session = Depends(get_db),
+    usuario=Depends(require_permiso(RUTAS, LECTURA)),
+):
+    """Consulta el orden recomendado sin cambiar nada."""
+    require_entrega_de_ruta(usuario, db, id_ruta)
+
+    return OS.evaluar(db, id_ruta, id_pedido)
 
 
 # ---------------------------------------------------------------------------

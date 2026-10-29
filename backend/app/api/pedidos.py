@@ -313,6 +313,10 @@ def actualizar_pedido(
             detail="La ventana de tiempo no existe",
         )
 
+    # El estado tiene que ser el mismo en los dos módulos: ver
+    # _revisar_estado_contra_ruta.
+    en_ruta = _revisar_estado_contra_ruta(db, id_pedido, datos.estado)
+
     resultado = db.execute(
         text("""
             UPDATE pedidos
@@ -367,9 +371,172 @@ def actualizar_pedido(
         },
     )
 
+    # Si el pedido está en una ruta y el estado nuevo es de los que
+    # la ruta sabe expresar, se escribe también allí. Es el camino
+    # inverso al del módulo Rutas: los dos terminan en el mismo sitio.
+    if (
+        en_ruta
+        and en_ruta["estado_ruta"] != 'COMPLETADA'
+        and datos.estado in ('ENTREGADO', 'FALLIDO')
+        and en_ruta["estado_entrega"] != datos.estado
+    ):
+        _propagar_estado_a_ruta(db, id_pedido, en_ruta, datos.estado)
+
     db.commit()
 
     return dict(resultado.mappings().one())
+
+
+def _ruta_del_pedido(db, id_pedido):
+    """La ruta en la que está repartiéndose el pedido, si la hay.
+
+    Se ignoran las rutas canceladas: un pedido que estuvo en una ruta
+    cancelada vuelve a estar libre y su estado se puede cambiar sin
+    consultar a nadie.
+    """
+    return db.execute(
+        text("""
+            SELECT rp.id_ruta, rp.estado_entrega, r.estado AS estado_ruta
+            FROM ruta_pedidos rp
+            INNER JOIN rutas r ON r.id_ruta = rp.id_ruta
+            WHERE rp.id_pedido = :id_pedido
+              AND r.estado <> 'CANCELADA'
+            ORDER BY rp.id_ruta DESC
+            LIMIT 1
+        """),
+        {"id_pedido": id_pedido},
+    ).mappings().first()
+
+
+def _revisar_estado_contra_ruta(db, id_pedido, estado):
+    """Impide que el estado del pedido contradiga al de su ruta.
+
+    Un pedido vive en dos sitios a la vez: en `pedidos`, que es lo que
+    ve el módulo Pedidos, y en `ruta_pedidos`, que es lo que ve el
+    conductor en su ruta. Si se escribe sólo en una de las dos, los
+    módulos se contradicen: el pedido aparece entregado en un sitio y
+    pendiente de reparto en el otro, y el conductor reparte un pedido
+    que ya se dio por entregado.
+
+    Las reglas:
+
+      - Una entrega ya cerrada (ENTREGADO / FALLIDO) es un registro.
+        No se cambia ni se deshace desde aquí.
+      - ENTREGADO y FALLIDO se propagan a la ruta, que sí sabe
+        expresar esos dos estados.
+      - Cualquier otro estado sobre un pedido que una ruta activa
+        sigue repartiendo se rechaza: `ruta_pedidos.estado_entrega`
+        no tiene forma de decir "cancelado", así que aceptar el
+        cambio dejaría los módulos en desacuerdo.
+
+    Devuelve la fila de la ruta, o None si el pedido no está en
+    ninguna. La comprobación va ANTES de escribir nada, para no dejar
+    el cambio a medias si después resulta que no se puede.
+
+    Vive en una función y no duplicado en cada endpoint a propósito:
+    las dos vías de cambio de estado tienen que aplicar exactamente
+    las mismas reglas, o volverían a separarse.
+    """
+    en_ruta = _ruta_del_pedido(db, id_pedido)
+
+    if not en_ruta:
+        return None
+
+    if en_ruta["estado_entrega"] in ('ENTREGADO', 'FALLIDO'):
+        if estado != en_ruta["estado_entrega"]:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"El pedido ya está {en_ruta['estado_entrega'].lower()} "
+                    f"en la ruta {en_ruta['id_ruta']} y no se puede "
+                    f"cambiar a {estado.lower()}. Una entrega cerrada "
+                    f"queda como registro."
+                ),
+            )
+
+        return en_ruta
+
+    if (
+        en_ruta["estado_ruta"] != 'COMPLETADA'
+        and estado not in ('ENTREGADO', 'FALLIDO')
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"El pedido ya está asignado a la ruta "
+                f"{en_ruta['id_ruta']}. No se puede pasar a "
+                f"{estado.lower()} desde aquí: la ruta lo sigue "
+                f"repartiendo y los dos módulos dejarían de "
+                f"coincidir. Cámbielo en el módulo Rutas."
+            ),
+        )
+
+    return en_ruta
+
+
+def _propagar_estado_a_ruta(db, id_pedido, en_ruta, estado):
+    """Escribe en `ruta_pedidos` el estado que se puso en `pedidos`.
+
+    Sin esto, marcar un pedido como ENTREGADO desde el módulo Pedidos
+    lo dejaría pendiente de reparto en la pantalla del conductor: los
+    dos módulos irían en direcciones opuestas.
+
+    La hora real se guarda como en la vía del módulo Rutas: se
+    conserva la que ya tuviera si la entrega se había cerrado antes,
+    porque ésa es la hora en que ocurrió de verdad.
+    """
+    db.execute(
+        text("""
+            UPDATE ruta_pedidos
+            SET estado_entrega = :estado,
+                hora_llegada_real = CASE
+                    WHEN :estado IN ('ENTREGADO', 'FALLIDO')
+                        THEN COALESCE(hora_llegada_real, CURRENT_TIMESTAMP)
+                    ELSE NULL
+                END
+            WHERE id_ruta = :id_ruta AND id_pedido = :id_pedido
+        """),
+        {
+            "estado": estado,
+            "id_ruta": en_ruta["id_ruta"],
+            "id_pedido": id_pedido,
+        },
+    )
+
+    cerrada = db.execute(
+        text("""
+            SELECT COUNT(*) FROM ruta_pedidos
+            WHERE id_ruta = :id_ruta
+              AND estado_entrega IN ('ENTREGADO', 'FALLIDO')
+        """),
+        {"id_ruta": en_ruta["id_ruta"]},
+    ).scalar()
+
+    total = db.execute(
+        text("""
+            SELECT COUNT(*) FROM ruta_pedidos WHERE id_ruta = :id_ruta
+        """),
+        {"id_ruta": en_ruta["id_ruta"]},
+    ).scalar()
+
+    # Si ya no queda nada por entregar, la ruta se cierra y el
+    # conductor queda libre. Lo mismo que hace el módulo Rutas: si las
+    # dos vías cerraran distinto, un conductor podría quedar
+    # bloqueado por cerrar la última entrega desde Pedidos.
+    if total and cerrada >= total:
+        from app.api.rutas import _cerrar_ruta
+
+        _cerrar_ruta(db, en_ruta["id_ruta"])
+
+    else:
+        db.execute(
+            text("""
+                UPDATE rutas SET estado = 'EN_CURSO'
+                WHERE id_ruta = :id_ruta
+                  AND estado IN ('PLANIFICADA', 'REOPTIMIZADA')
+            """),
+            {"id_ruta": en_ruta["id_ruta"]},
+        )
 
 
 @router.patch("/{id_pedido}/estado")
@@ -379,6 +546,10 @@ def cambiar_estado_pedido(
     db: Session = Depends(get_db),
     usuario_actual=Depends(require_permiso(PEDIDOS, ESCRITURA)),
 ):
+    # Mismas reglas que en actualizar_pedido: el estado del pedido no
+    # puede contradecir al de su ruta. Ver _revisar_estado_contra_ruta.
+    en_ruta = _revisar_estado_contra_ruta(db, id_pedido, datos.estado)
+
     resultado = db.execute(
         text("""
             UPDATE pedidos
@@ -412,6 +583,17 @@ def cambiar_estado_pedido(
             status_code=404,
             detail="El pedido no existe",
         )
+
+    # El estado nuevo se propaga a la ruta cuando la ruta sabe
+    # expresarlo. Es el camino inverso al del módulo Rutas: marcar un
+    # pedido como entregado en Pedidos tiene que verse igual en la
+    # pantalla del conductor.
+    if (
+        en_ruta
+        and en_ruta["estado_ruta"] != 'COMPLETADA'
+        and en_ruta["estado_entrega"] != datos.estado
+    ):
+        _propagar_estado_a_ruta(db, id_pedido, en_ruta, datos.estado)
 
     db.commit()
 

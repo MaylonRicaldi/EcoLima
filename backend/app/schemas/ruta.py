@@ -55,6 +55,17 @@ class ReoptimizarRequest(BaseModel):
     motivo: str | None = None
 
 
+class EncargarPedidoRequest(BaseModel):
+    """Encargar a un conductor un pedido que estaba suelto.
+
+    El pedido entra en la ruta que ya está haciendo, al final de la
+    secuencia. El orden no se cambia aquí: esto sólo lo mete en la
+    lista y devuelve la recomendación.
+    """
+
+    id_pedido: int = Field(gt=0)
+
+
 class ReoptimizacionRespuesta(BaseModel):
     """Resultado de corregir el recorrido de una ruta (HU-08).
 

@@ -7,6 +7,8 @@ RN-017 dispara la reoptimización cuando:
   d) avería vehicular.
 La reoptimización debe completarse en <= 30 s (RNF-001).
 """
+from datetime import date, time
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -32,6 +34,16 @@ from app.schemas.incidente import (
 )
 
 
+from app.schemas.operacion_ampliada import (
+    ObstaculoCreate,
+    ObstaculoResponse,
+    SaturacionRespuesta,
+    VentanaSugeridaRequest,
+)
+
+from app.services import saturacion as SAT
+
+
 trafico_router = APIRouter(
     prefix="/trafico",
     tags=["Tráfico"],
@@ -41,6 +53,181 @@ incidentes_router = APIRouter(
     prefix="/incidentes",
     tags=["Incidentes"],
 )
+
+obstaculos_router = APIRouter(
+    prefix="/obstaculos",
+    tags=["Obstáculos"],
+)
+
+operacion_router = APIRouter(
+    prefix="/operacion",
+    tags=["Operación"],
+)
+
+
+# ---------------------------------------------------------------------------
+# Obstáculos de la calzada
+# ---------------------------------------------------------------------------
+#
+# Un obstáculo no es un incidente. El incidente es algo que pasó y se
+# resolvió; el cono se queda ahí, aparece en el mapa de todos los
+# conductores y afecta a las rutas siguientes hasta que alguien lo
+# quita. Por eso vive en su propia tabla y no se borra al terminar
+# la ruta.
+
+
+@obstaculos_router.get("", response_model=list[ObstaculoResponse])
+def listar_obstaculos(
+    incluir_resueltos: bool = False,
+    db: Session = Depends(get_db),
+    usuario=Depends(require_permiso(INCIDENTES, LECTURA)),
+):
+    """Obstáculos activos de la calzada.
+
+    Van en todos los mapas, no solo en el de quien lo puso: un cono
+    en una calle tiene que verse desde cualquier ruta que la cruce.
+    """
+    filas = db.execute(
+        text("""
+            SELECT
+                o.id_obstaculo, o.tipo, o.descripcion,
+                o.latitud, o.longitud, o.nivel,
+                o.id_usuario, o.fecha_registro, o.resuelto
+            FROM obstaculos o
+            WHERE (:todos = TRUE OR o.resuelto = FALSE)
+            ORDER BY o.resuelto, o.fecha_registro DESC
+        """),
+        {"todos": incluir_resueltos},
+    ).mappings().all()
+
+    return [dict(f) for f in filas]
+
+
+@obstaculos_router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    response_model=ObstaculoResponse,
+)
+def registrar_obstaculo(
+    datos: ObstaculoCreate,
+    db: Session = Depends(get_db),
+    usuario=Depends(require_permiso(INCIDENTES, ESCRITURA)),
+):
+    """Coloca un obstáculo en un punto.
+
+    Es lo que hace el conductor cuando reporta un malestar en un
+    punto concreto de su ruta: pone el cono y queda ahí.
+    """
+    fila = db.execute(
+        text("""
+            INSERT INTO obstaculos (
+                tipo, descripcion, latitud, longitud,
+                ubicacion, nivel, id_usuario
+            )
+            VALUES (
+                :tipo, :descripcion, :latitud, :longitud,
+                ST_SetSRID(ST_MakePoint(:longitud, :latitud), 4326),
+                :nivel, :usuario
+            )
+            RETURNING id_obstaculo, tipo, descripcion, latitud,
+                      longitud, nivel, id_usuario, fecha_registro,
+                      resuelto
+        """),
+        {
+            "tipo": datos.tipo,
+            "descripcion": datos.descripcion,
+            "latitud": datos.latitud,
+            "longitud": datos.longitud,
+            "nivel": datos.nivel,
+            "usuario": usuario.get("id_usuario"),
+        },
+    ).mappings().first()
+
+    db.commit()
+
+    return dict(fila)
+
+
+@obstaculos_router.delete("/{id_obstaculo}")
+def quitar_obstaculo(
+    id_obstaculo: int,
+    db: Session = Depends(get_db),
+    usuario=Depends(require_permiso(INCIDENTES, ESCRITURA)),
+):
+    """Quita el obstáculo de la calzada.
+
+    Se borra de verdad, no se marca: un cono que ya no está en la
+    calle no debe seguir saliendo en los mapas. Por eso no hace
+    falta permiso de ADMIN: quien pueda reportar incidentes puede
+    quitar el cono que puso.
+    """
+    borrado = db.execute(
+        text("DELETE FROM obstaculos WHERE id_obstaculo = :id"),
+        {"id": id_obstaculo},
+    ).rowcount
+
+    if not borrado:
+        raise HTTPException(
+            status_code=404,
+            detail="El obstáculo no existe",
+        )
+
+    db.commit()
+
+    return {"id_obstaculo": id_obstaculo, "quitado": True}
+
+
+# ---------------------------------------------------------------------------
+# Saturación de la operación
+# ---------------------------------------------------------------------------
+
+
+@operacion_router.get("/saturacion", response_model=SaturacionRespuesta)
+def ver_saturacion(
+    fecha: date,
+    hora_inicio: time,
+    hora_fin: time,
+    peso_kg: float = 0,
+    volumen_m3: float = 0,
+    db: Session = Depends(get_db),
+    usuario=Depends(require_permiso(TRAFICO, LECTURA)),
+):
+    """Si la operación da abasto para esa ventana.
+
+    Informa de las dos cosas que pueden saturar: que no haya
+    conductores ni vehículos libres, y que el tráfico de ese día esté
+    discurriendo por encima de las rutas.
+
+    No cambia nada. Si la ventana está llena, propone otra del
+    catálogo y es el usuario quien decide.
+    """
+    if hora_fin <= hora_inicio:
+        raise HTTPException(
+            status_code=400,
+            detail="La hora de fin debe ser posterior a la de inicio",
+        )
+
+    return SAT.evaluar_saturacion(
+        db, fecha, hora_inicio, hora_fin, peso_kg, volumen_m3
+    )
+
+
+@operacion_router.post("/ventana-sugerida")
+def sugerir_ventana(
+    datos: VentanaSugeridaRequest,
+    db: Session = Depends(get_db),
+    usuario=Depends(require_permiso(TRAFICO, LECTURA)),
+):
+    """Ventana del catálogo que sí tiene hueco para ese pedido."""
+    sugerida = SAT.buscar_ventana_con_hueco(
+        db, datos.fecha, datos.hora_inicio, datos.hora_fin,
+        datos.peso_kg, datos.volumen_m3,
+    )
+
+    return {
+        "ventana_sugerida": sugerida,
+        "hay_alternativa": sugerida is not None,
+    }
 
 
 # ---------------------------------------------------------------------------

@@ -135,6 +135,35 @@ export default function Dashboard() {
   }
 
 
+  // Si la carga falló, datos es null. Antes esto reventaba con
+  // "Cannot read properties of null". Ahora se explica qué pasa,
+  // porque la causa más común es que el backend no esté levantado.
+  if (!datos) {
+    return (
+      <main>
+        <h1>Dashboard</h1>
+
+        <div className="mensaje error">
+          No se pudieron cargar los indicadores.
+        </div>
+
+        <p className="ayuda-accion">
+          {error
+            ? error
+            : 'El servidor no respondió.'}{' '}
+          Revisa que el backend esté corriendo en el puerto 8000.
+        </p>
+
+        <div className="form-actions">
+          <button type="button" onClick={cargar}>
+            Reintentar
+          </button>
+        </div>
+      </main>
+    )
+  }
+
+
   const c = datos.conteos
   const op = datos.operacion
   const ah = datos.ahorro

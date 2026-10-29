@@ -1885,9 +1885,61 @@ nav.modulos p {
   z-index: 0;
 }
 
+/* ---------------- PIN DE UBICACIÓN ---------------- */
+
+/* El marcador se dibuja con CSS en vez de con una imagen. El icono
+   que trae Leaflet depende de una ruta relativa a su CSS y con
+   bundlers a veces no carga, dejando un cuadrado vacío. Con CSS
+   siempre se ve y toma los colores del proyecto. */
+
+.pin-ubicacion {
+  background: transparent;
+  border: none;
+}
+
+.pin-ubicacion-punta {
+  display: block;
+  width: 26px;
+  height: 26px;
+  margin: 0 auto;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: linear-gradient(135deg, #0d9488, #059669);
+  border: 3px solid #ffffff;
+  box-shadow: 0 0.25rem 0.625rem -0.125rem rgba(2, 44, 34, 0.55);
+}
+
+.pin-ubicacion-punta::after {
+  content: '';
+  display: block;
+  width: 8px;
+  height: 8px;
+  margin: 6px auto 0;
+  border-radius: 50%;
+  background: #ecfdf5;
+}
+
+.leaflet-marker-icon.pin-ubicacion {
+  transition: transform 0.15s ease;
+}
+
+.leaflet-marker-icon.pin-ubicacion:hover {
+  transform: scale(1.12);
+}
+
 .instruccion-mapa {
   font-size: 0.82rem;
   color: var(--texto-medio);
+}
+
+/* El selector de punto envuelve el mapa y las coordenadas leídas.
+   Las coordenadas no se editan: se muestran para que el usuario
+   confirme dónde tocó, no para que escriba coordenadas a mano. */
+
+.selector-punto {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
 }
 
 .coordenadas-elegidas {
@@ -1919,6 +1971,548 @@ nav.modulos p {
   margin-top: 0.25rem;
   font-size: 0.82rem;
   color: #b45309;
+}
+
+/* ---------------- ELECCIÓN DE ORIGEN DE LA ENTREGA ---------------- */
+
+/* Dos tarjetas: la del cliente o un punto distinto. Se muestran
+   siempre, porque elegir la ubicación del pedido es una decisión y
+   no debe pasar inadvertida. */
+.selector-origen {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.625rem;
+  margin-bottom: 0.25rem;
+}
+
+.opcion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1875rem;
+  padding: 0.75rem 0.875rem;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 0.75rem;
+  border: 1px solid var(--borde-tenue);
+  background: var(--vidrio-bajo);
+  color: var(--texto-medio);
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.opcion strong {
+  font-size: 0.88rem;
+  color: var(--texto);
+}
+
+.opcion span {
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.opcion:hover:not(:disabled) {
+  border-color: rgba(13, 148, 136, 0.45);
+}
+
+.opcion.activa {
+  border-color: rgba(13, 148, 136, 0.7);
+  background: rgba(240, 253, 250, 0.92);
+  box-shadow: 0 0.25rem 0.875rem -0.5rem rgba(13, 148, 136, 0.55);
+}
+
+.opcion.activa strong {
+  color: #0f766e;
+}
+
+.opcion:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.campo-fijado {
+  background: var(--vidrio-bajo);
+  border-style: dashed;
+  cursor: default;
+}
+
+.campo-fijado:read-only {
+  color: var(--texto-medio);
+}
+
+/* ---------------- ENCARGAR OTRA ORDEN ---------------- */
+
+/* La caja donde se decide qué hacer con un envío que llega cuando el
+   conductor ya va en camino. Se separa de la tabla de pedidos porque
+   aquí no se registra nada: se decide. */
+
+.encargar-orden {
+  margin-top: 1.25rem;
+  padding: 1rem 1.125rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(8, 145, 178, 0.25);
+  background: rgba(8, 145, 178, 0.06);
+}
+
+.encargar-controles {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+
+.encargar-controles .campo {
+  flex: 1 1 18rem;
+  margin: 0;
+}
+
+.encargar-controles .form-actions {
+  margin: 0;
+}
+
+/* El veredicto. Verde si conviene seguir como está, ámbar si
+   conviene cambiar: el color dice lo mismo que el texto, para no
+   tener que leerlo para saber si hay algo que hacer. */
+
+.orden-sugerido {
+  margin-top: 0.875rem;
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  background: var(--vidrio-bajo);
+  border: 1px solid var(--borde-tenue);
+}
+
+.orden-sugerido h3 {
+  margin: 0 0 0.375rem;
+  font-family: var(--sans);
+  font-size: 0.92rem;
+}
+
+.orden-motivo {
+  margin: 0 0 0.75rem;
+  font-size: 0.86rem;
+  color: var(--texto-medio);
+  line-height: 1.5;
+}
+
+.orden-comparacion {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.625rem;
+}
+
+.orden-comparacion > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1875rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.625rem;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid var(--borde-tenue);
+  font-size: 0.8rem;
+  color: var(--texto-medio);
+  font-variant-numeric: tabular-nums;
+}
+
+.orden-comparacion strong {
+  font-family: var(--sans);
+  color: var(--texto-fuerte);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* La marca de que una entrega se le está yendo la ventana. Es lo
+   único de toda la caja que cambia el orden, así que tiene que
+   destacar de verdad. */
+
+.marca-urgente {
+  align-self: flex-start;
+  margin-top: 0.1875rem;
+  padding: 0.125rem 0.4375rem;
+  border-radius: 99px;
+  background: rgba(180, 83, 9, 0.16);
+  border: 1px solid rgba(180, 83, 9, 0.4);
+  color: #92400e;
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 0.68rem;
+}
+
+/* ---------------- ICONO DEL LOCAL ---------------- */
+
+/* El local de la empresa. Se dibuja como una casita con tejado, para
+   que se distinga de un vistazo de un punto de entrega: es el sitio
+   del que salen y al que vuelven los envíos, no un cliente. */
+
+.pin-local {
+  background: transparent;
+  border: none;
+}
+
+.local-cuerpo {
+  position: relative;
+  display: block;
+  width: 24px;
+  height: 18px;
+  margin: 12px auto 0;
+  border-radius: 2px 2px 3px 3px;
+  background: linear-gradient(180deg, #e2e8f0, #cbd5e1);
+  border: 2px solid #ffffff;
+  box-shadow: 0 0.25rem 0.625rem -0.125rem rgba(15, 23, 42, 0.5);
+}
+
+.local-techo {
+  position: absolute;
+  top: -13px;
+  left: -4px;
+  width: 0;
+  height: 0;
+  border-left: 14px solid transparent;
+  border-right: 14px solid transparent;
+  border-bottom: 13px solid #0f766e;
+  filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.4));
+}
+
+.local-puerta {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 7px;
+  height: 10px;
+  border-radius: 1px 1px 0 0;
+  background: #0f766e;
+}
+
+.leaflet-marker-icon.pin-local {
+  transition: transform 0.15s ease;
+}
+
+.leaflet-marker-icon.pin-local:hover {
+  transform: scale(1.12);
+}
+
+/* ---------------- PANEL DEL LOCAL ---------------- */
+
+/* El local y su botón de moverlo, debajo del mapa del recorrido.
+   Se separa del mapa porque son dos cosas: una es el resultado,
+   la otra es la configuración de dónde sale todo. */
+
+.local-panel {
+  margin-top: 1.25rem;
+  padding: 1rem 1.125rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(15, 118, 110, 0.25);
+  background: rgba(15, 118, 110, 0.06);
+}
+
+.local-panel-cabecera {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.local-panel h3 {
+  margin: 0 0 0.25rem;
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  color: #0f766e;
+}
+
+.local-panel-linea {
+  margin: 0.125rem 0;
+  font-size: 0.85rem;
+  color: #1e293b;
+}
+
+.local-panel-linea.tenue {
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
+.local-panel-aviso {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.625rem;
+  border-radius: 0.5rem;
+  background: rgba(180, 83, 9, 0.12);
+  border: 1px solid rgba(180, 83, 9, 0.3);
+  font-size: 0.8rem;
+  color: #92400e;
+}
+
+.local-panel-formulario {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.875rem;
+  padding-top: 0.875rem;
+  border-top: 1px dashed rgba(15, 118, 110, 0.3);
+}
+
+/* Los puntos de la leyenda que son imágenes, no cuadrados de
+   color: el local y el cono se dibujan con formas propias y en la
+   leyenda tienen que verse igual que en el mapa. */
+
+.leyenda-punto {
+  display: inline-block;
+  width: 0.875rem;
+  height: 0.875rem;
+  flex: 0 0 auto;
+}
+
+.leyenda-punto.local {
+  border-radius: 2px;
+  background: linear-gradient(180deg, #e2e8f0, #cbd5e1);
+  border: 2px solid #0f766e;
+  box-sizing: border-box;
+}
+
+.leyenda-punto.cono {
+  width: 0.625rem;
+  height: 0.625rem;
+  margin: 0 0.125rem;
+  background: #ea580c;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+/* Aviso de que falta elegir un punto en el mapa */
+.coordenadas-pista {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 0.72rem;
+  color: #b45309;
+}
+
+/* ---------------- CONO DE OBSTÁCULO ---------------- */
+
+/* El cono se dibuja con CSS y no con una imagen, por lo mismo que el
+   pin de la entrega: así siempre aparece y toma los colores del
+   proyecto. Naranja con franjas blancas, como los de obra, y con
+   sombra para que se lea sobre cualquier fondo de mapa. */
+
+.cono-obstaculo {
+  background: transparent;
+  border: none;
+}
+
+.cono-cuerpo {
+  position: relative;
+  display: block;
+  width: 22px;
+  height: 30px;
+  border-radius: 3px 3px 1px 1px;
+  background: linear-gradient(180deg, #fb923c, #ea580c);
+  border: 2px solid #ffffff;
+  box-shadow: 0 0.25rem 0.625rem -0.125rem rgba(67, 20, 7, 0.6);
+}
+
+.cono-cuerpo::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: -5px;
+  width: 26px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(120, 53, 15, 0.45);
+}
+
+.cono-banda {
+  display: block;
+  height: 5px;
+  margin: 3px 0 0;
+  background: #ffffff;
+  opacity: 0.9;
+}
+
+.leaflet-marker-icon.cono-obstaculo {
+  transition: transform 0.15s ease;
+}
+
+.leaflet-marker-icon.cono-obstaculo:hover {
+  transform: scale(1.15);
+}
+
+.boton-popup {
+  margin-top: 0.5rem;
+  font-size: 0.78rem;
+}
+
+.form-cono {
+  margin-top: 0.625rem;
+  padding: 0.75rem 0.875rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(234, 88, 12, 0.4);
+  background: rgba(255, 247, 237, 0.9);
+}
+
+/* ---------------- LISTA DE CONOS ---------------- */
+
+.lista-obstaculos {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fila-obstaculo {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(234, 88, 12, 0.3);
+  background: rgba(255, 247, 237, 0.7);
+}
+
+.fila-obstaculo strong {
+  display: block;
+  font-size: 0.85rem;
+}
+
+.fila-obstaculo span {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--texto-medio);
+}
+
+.fila-obstaculo small {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  color: var(--texto-tenue);
+}
+
+.acciones-obstaculo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+/* El cono en miniatura de la lista: mismo aspecto que en el mapa */
+.cono-miniatura {
+  width: 14px;
+  height: 20px;
+  border-radius: 2px 2px 0 0;
+  background: linear-gradient(180deg, #fb923c, #ea580c);
+  border: 2px solid #ffffff;
+  box-shadow: 0 0.125rem 0.375rem -0.125rem rgba(67, 20, 7, 0.5);
+}
+
+.boton-peligro {
+  padding: 0.4375rem 0.875rem;
+  border-radius: 0.625rem;
+  border: 1px solid rgba(244, 63, 94, 0.4);
+  background: rgba(255, 241, 242, 0.9);
+  color: #9f1239;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.boton-peligro:hover {
+  background: rgba(255, 228, 230, 0.95);
+}
+
+/* ---------------- SATURACIÓN DE LA OPERACIÓN ---------------- */
+
+/* Aviso al elegir la ventana de un pedido. Informa de si la
+   operación da abasto; nunca bloquea el formulario, porque el
+   pedido se registra igual con la ventana que eligió el usuario. */
+
+.aviso-saturacion {
+  grid-column: 1 / -1;
+  padding: 0.75rem 0.9375rem;
+  border-radius: 0.75rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  border: 1px solid var(--borde-tenue);
+  background: var(--vidrio-bajo);
+}
+
+.aviso-saturacion.holgado {
+  border-color: rgba(13, 148, 136, 0.45);
+  background: rgba(240, 253, 250, 0.9);
+}
+
+.aviso-saturacion.ajustado {
+  border-color: rgba(245, 158, 11, 0.5);
+  background: rgba(255, 251, 235, 0.9);
+}
+
+.aviso-saturacion.saturado {
+  border-color: rgba(244, 63, 94, 0.45);
+  background: rgba(255, 241, 242, 0.9);
+}
+
+.aviso-saturacion strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--texto);
+}
+
+.aviso-saturacion ul {
+  margin: 0.25rem 0;
+  padding-left: 1.125rem;
+}
+
+.aviso-saturacion small {
+  display: block;
+  color: var(--texto-tenue);
+  font-size: 0.76rem;
+}
+
+.sugerencia-ventana {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--borde-tenue);
+}
+
+.sugerencia-ventana p {
+  margin: 0;
+  flex: 1 1 16rem;
+  font-size: 0.79rem;
+}
+
+/* Formulario de la ventana creada para un solo pedido */
+.ventana-ocasional {
+  margin-top: 0.5rem;
+  padding: 0.75rem 0.875rem;
+  border-radius: 0.75rem;
+  border: 1px dashed rgba(13, 148, 136, 0.5);
+  background: rgba(240, 253, 250, 0.55);
+}
+
+.ventana-ocasional .form-grid {
+  margin-bottom: 0.5rem;
+}
+
+.boton-enlace {
+  align-self: flex-start;
+  margin-top: 0.375rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 0.79rem;
+  font-weight: 700;
+  color: #0f766e;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.boton-enlace:hover {
+  color: #115e59;
 }
 
 /* ---------------- RESPONSIVE ---------------- */
