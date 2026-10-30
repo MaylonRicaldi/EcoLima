@@ -20,7 +20,7 @@ La primera ejecución documentada presentó los siguientes resultados:
 | Métrica | Resultado inicial |
 |---|---:|
 | Quality Gate | Passed |
-| Líneas de código | 21 000 |
+| Líneas de código | 22 000 |
 | Seguridad | 1 incidencia (B) |
 | Fiabilidad | 49 incidencias (D) |
 | Mantenibilidad | 3 incidencias (A) |
