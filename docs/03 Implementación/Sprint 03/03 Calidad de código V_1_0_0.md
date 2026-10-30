@@ -67,7 +67,7 @@ La documentación fuente no contiene una captura ni un desglose numérico de una
 
 ## 6. Conclusiones
 
-El análisis inicial de SonarQube registró un Quality Gate aprobado, 49 incidencias de fiabilidad, 3 de mantenibilidad y una incidencia de seguridad. En el escenario de remediación documentado para el Sprint 03, dichas observaciones fueron atendidas y se realizó una nueva revisión de calidad, manteniéndose el Quality Gate aprobado.
+El análisis inicial de SonarQube registró un Quality Gate aprobado, 49 incidencias de fiabilidad, 3 de mantenibilidad y una incidencia de seguridad. En el escenario de remediación documentado para el Sprint 03, dichas observaciones fueron atendidas y se realizó una nueva revisión de calidad, manteniéndose el Quality Gate aprobado, posteriormente se busco reducir las incidencias de fiabilidad y los riesgos de seguridad.
 
 La cobertura se conserva como no cuantificada debido a que el PDF fuente no incluye un informe de cobertura. La duplicación registrada inicialmente fue de 0.5 %.
 
