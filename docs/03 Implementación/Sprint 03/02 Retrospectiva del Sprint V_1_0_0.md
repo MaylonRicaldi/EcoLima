@@ -1,10 +1,10 @@
+# 02. Retrospectiva del Sprint 3
+
 **Proyecto:** EcoLogística Lima – EcoLima
 **Sprint:** Sprint 3
 **Versión:** 1.0.0
 **Fecha de cierre:** 23 de octubre de 2026
 **Metodología:** Scrum
-
----
 
 ## 1. Objetivo
 
