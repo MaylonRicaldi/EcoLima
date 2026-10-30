@@ -178,6 +178,88 @@ export default function MapaUbicador({
     })
   }
 
+  /* ---------------- geocodificación inversa ---------------- */
+
+  /* Pregunta a Nominatim qué dirección hay en ese punto. Se usa al
+     hacer clic o al soltar el marcador, que son acciones
+     deliberadas: una consulta por acción, no una por tecla.
+
+     Si el servicio no responde, el punto ya está fijado igual: solo
+     no se escribe la dirección. Perder la coordenada por no haber
+     dirección sería peor que dejar el campo para escribirlo. */
+  async function buscarDireccion(lat, lon, aplicar) {
+    const transcurrido = Date.now() - ultimaPeticion.current
+
+    if (transcurrido < ESPERA_MINIMA_MS) {
+      await new Promise((r) => {
+        setTimeout(r, ESPERA_MINIMA_MS - transcurrido)
+      })
+    }
+
+    ultimaPeticion.current = Date.now()
+
+    peticion.current?.abort()
+
+    const control = new AbortController()
+
+    peticion.current = control
+
+    try {
+      const url =
+        `${NOMINATIM_INVERSO}&lat=${lat}&lon=${lon}` +
+        `&countrycodes=pe`
+
+      const respuesta = await fetch(url, { signal: control.signal })
+
+      if (!respuesta.ok) {
+        return
+      }
+
+      const datos = await respuesta.json()
+
+      const texto = componerDireccion(datos)
+
+      if (texto) {
+        aplicar(texto)
+      }
+    } catch (err) {
+      /* Si se cancela porque el usuario movió el punto otra vez, es
+         normal y no se avisa. Cualquier otro fallo se registra: un
+         error silencioso aquí hace imposible saber por qué la
+         dirección no se rellena, que es justo lo que pasó con un
+         `direcity` mal escrito. */
+      if (err.name !== 'AbortError') {
+        console.warn('[MapaUbicador] no se pudo obtener la dirección:', err)
+      }
+    }
+  }
+
+  /* Fija el punto por clic o arrastre y pide la dirección de ese
+     punto.
+
+     Cada clic genera un número. Cuando llega la respuesta se
+     comprueba que siga siendo el último: si el usuario movió el
+     punto otra vez mientras esperaba, la dirección que llegó sería
+     de otro sitio y no se escribe. */
+  function fijarYDescribir(lat, lon) {
+    fijar(lat, lon)
+
+    const marca = ++puntoPedido.current
+
+    buscarDireccion(lat, lon, (texto) => {
+      if (marca !== puntoPedido.current) {
+        return
+      }
+
+      onCambio({
+        latitud: Number(Number(lat).toFixed(7)),
+        longitud: Number(Number(lon).toFixed(7)),
+        etiqueta: texto,
+      })
+    })
+  }
+
+
   /* ---------------- mapa ---------------- */
 
   useEffect(() => {
@@ -408,63 +490,6 @@ export default function MapaUbicador({
     }, ESPERA_ESCRITURA_MS)
   }
 
-  /* ---------------- geocodificación inversa ---------------- */
-
-  /* Pregunta a Nominatim qué dirección hay en ese punto. Se usa al
-     hacer clic o al soltar el marcador, que son acciones
-     deliberadas: una consulta por acción, no una por tecla.
-
-     Si el servicio no responde, el punto ya está fijado igual: solo
-     no se escribe la dirección. Perder la coordenada por no haber
-     dirección sería peor que dejar el campo para escribirlo. */
-  async function buscarDireccion(lat, lon, aplicar) {
-    const transcurrido = Date.now() - ultimaPeticion.current
-
-    if (transcurrido < ESPERA_MINIMA_MS) {
-      await new Promise((r) => {
-        setTimeout(r, ESPERA_MINIMA_MS - transcurrido)
-      })
-    }
-
-    ultimaPeticion.current = Date.now()
-
-    peticion.current?.abort()
-
-    const control = new AbortController()
-
-    peticion.current = control
-
-    try {
-      const url =
-        `${NOMINATIM_INVERSO}&lat=${lat}&lon=${lon}` +
-        `&countrycodes=pe`
-
-      const respuesta = await fetch(url, { signal: control.signal })
-
-      if (!respuesta.ok) {
-        return
-      }
-
-      const datos = await respuesta.json()
-
-      const texto = componerDireccion(datos)
-
-      if (texto) {
-        aplicar(texto)
-      }
-    } catch (err) {
-      /* Si se cancela porque el usuario movió el punto otra vez, es
-         normal y no se avisa. Cualquier otro fallo se registra: un
-         error silencioso aquí hace imposible saber por qué la
-         dirección no se rellena, que es justo lo que pasó con un
-         `direcity` mal escrito. */
-      if (err.name !== 'AbortError') {
-        console.warn('[MapaUbicador] no se pudo obtener la dirección:', err)
-      }
-    }
-  }
-
-
   /* Fija el punto por clic o arrastre y pide la dirección de ese
      punto.
 
@@ -472,25 +497,6 @@ export default function MapaUbicador({
      comprueba que siga siendo el último: si el usuario movió el
      punto otra vez mientras esperaba, la dirección que llegó sería
      de otro sitio y no se escribe. */
-  function fijarYDescribir(lat, lon) {
-    fijar(lat, lon)
-
-    const marca = ++puntoPedido.current
-
-    buscarDireccion(lat, lon, (texto) => {
-      if (marca !== puntoPedido.current) {
-        return
-      }
-
-      onCambio({
-        latitud: Number(Number(lat).toFixed(7)),
-        longitud: Number(Number(lon).toFixed(7)),
-        etiqueta: texto,
-      })
-    })
-  }
-
-
   function elegir(lugar) {
     clearTimeout(temporizador.current)
 

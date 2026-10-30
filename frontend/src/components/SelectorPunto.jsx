@@ -22,21 +22,6 @@ function dentroDeLima(lat, lon) {
   )
 }
 
-/* El local se dibuja con CSS y no con una imagen, por lo mismo que
-   el pin y el cono: así siempre aparece. Es un cuadrado con tejado
-   para que se lea como "nuestra base" y no como otra entrega. */
-const ICONO_LOCAL = L.divIcon({
-  className: 'pin-local',
-  html:
-    '<span class="local-cuerpo">' +
-    '<span class="local-techo"></span>' +
-    '<span class="local-puerta"></span>' +
-    '</span>',
-  iconSize: [32, 34],
-  iconAnchor: [16, 34],
-  popupAnchor: [0, -32],
-})
-
 
 /**
  * Elige un punto sobre el mapa. Nunca se escriben coordenadas a mano.
@@ -55,7 +40,6 @@ export default function SelectorPunto({
   etiqueta = 'Punto',
   capas = [],
   marcadores = [],
-  puntoInicial = null,
 }) {
   const contenedor = useRef(null)
   const mapa = useRef(null)
@@ -256,7 +240,6 @@ export default function SelectorPunto({
         mapa.current.fitBounds(limites, { padding: [30, 30] })
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [capas, marcadores])
 
   /* El clic marca el punto. Se registra en un efecto aparte para
@@ -284,7 +267,7 @@ export default function SelectorPunto({
     return () => {
       m.off('click', alPulsar)
     }
-  }, [onCambio])
+  }, [onCambio, avisar])
 
   return (
     <div className="selector-punto">

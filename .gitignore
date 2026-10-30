@@ -45,6 +45,9 @@ build/
 coverage/
 playwright-report/
 test-results/
+.scannerwork/
+/frontend/cypress/videos/
+/frontend/cypress/screenshots/
 
 # ---- Logs ----
 logs/

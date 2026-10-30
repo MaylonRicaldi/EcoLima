@@ -94,7 +94,36 @@ export default function Vehiculos() {
 
 
   useEffect(() => {
-    cargarVehiculos()
+    let montado = true
+
+    async function cargarVehiculosDesdeEfecto() {
+      try {
+        const data = await listarVehiculos()
+
+        if (!montado) {
+          return
+        }
+
+        setVehiculos(data)
+        setError('')
+      } catch (err) {
+        if (!montado) {
+          return
+        }
+
+        setError(err.message)
+      } finally {
+        if (montado) {
+          setCargando(false)
+        }
+      }
+    }
+
+    cargarVehiculosDesdeEfecto()
+
+    return () => {
+      montado = false
+    }
   }, [])
 
 

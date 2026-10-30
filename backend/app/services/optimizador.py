@@ -207,7 +207,13 @@ class Conductor:
         ) * 60
 
         # RN-022: parte del conductor; si no tiene, la base operativa
-        if fila['ubicacion_inicio']:
+        latitud_inicio = fila.get('latitud_inicio')
+        longitud_inicio = fila.get('longitud_inicio')
+
+        if latitud_inicio is not None and longitud_inicio is not None:
+            self.latitud = float(latitud_inicio)
+            self.longitud = float(longitud_inicio)
+        elif fila.get('ubicacion_inicio'):
             self.latitud = float(fila['ubicacion_inicio'].y)
             self.longitud = float(fila['ubicacion_inicio'].x)
         else:

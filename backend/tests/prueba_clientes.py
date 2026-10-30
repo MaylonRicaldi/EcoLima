@@ -80,7 +80,13 @@ def main():
     # ---------------- HU-01: autenticación sigue igual ----------------
     st, cuerpo = admin.post(
         "/auth/login",
-        {"email": "admin@ecolima.com", "password": "admin"},
+        {
+            "email": "admin@ecolima.com",
+            "password": os.environ.get(
+                "ECOLIMA_TEST_ADMIN_PASSWORD",
+                "admin",
+            ),
+        },
     )
     r.check("login sigue funcionando", st == 200, f"status {st}")
 

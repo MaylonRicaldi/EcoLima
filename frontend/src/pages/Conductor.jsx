@@ -68,7 +68,52 @@ export default function Conductor() {
 
 
   useEffect(() => {
-    cargar()
+    let montado = true
+
+    async function cargarDesdeEfecto() {
+      try {
+        const [asig, inc, pend] = await Promise.all([
+          listarAsignaciones(),
+          listarIncidentes('ACTIVO'),
+          rutasPendientesReoptimizacion(),
+        ])
+
+        if (!montado) {
+          return
+        }
+
+        setIncidentes(inc)
+        setPendientes(pend)
+
+        // La primera asignación vigente es la ruta a mostrar
+        const activa =
+          asig.find(
+            (a) => a.estado === 'ASIGNADA' || a.estado === 'EN_CURSO'
+          ) || asig[0]
+
+        if (activa) {
+          setRuta(await obtenerRuta(activa.id_ruta))
+        } else {
+          setRuta(null)
+        }
+      } catch (err) {
+        if (!montado) {
+          return
+        }
+
+        setError(err.message)
+      } finally {
+        if (montado) {
+          setCargando(false)
+        }
+      }
+    }
+
+    cargarDesdeEfecto()
+
+    return () => {
+      montado = false
+    }
   }, [])
 
 

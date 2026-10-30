@@ -148,9 +148,104 @@ function Pedidos() {
   }
 
   useEffect(() => {
-    cargarPedidos()
-    cargarReferencias()
+    let montado = true
+
+    async function cargarPedidosDesdeEfecto() {
+      try {
+        const datos = await listarPedidos()
+
+        if (!montado) {
+          return
+        }
+
+        setPedidos(datos)
+        setError('')
+      } catch (error) {
+        if (!montado) {
+          return
+        }
+
+        setError(error.message)
+      } finally {
+        if (montado) {
+          setCargando(false)
+        }
+      }
+    }
+
+    cargarPedidosDesdeEfecto()
+
+    return () => {
+      montado = false
+    }
   }, [])
+
+
+  useEffect(() => {
+    let montado = true
+
+    async function cargarReferenciasDesdeEfecto() {
+      // allSettled: que falle una referencia no debe descartar la otra.
+      const [resClientes, resVentanas] = await Promise.allSettled([
+        listarClientes(),
+        listarVentanasDisponibles(),
+      ])
+
+      if (!montado) {
+        return
+      }
+
+      const c =
+        resClientes.status === 'fulfilled' ? resClientes.value : []
+      const v =
+        resVentanas.status === 'fulfilled' ? resVentanas.value : []
+
+      setClientes(c)
+      setVentanas(v)
+
+      const fallidos = [resClientes, resVentanas].filter(
+        (r) => r.status === 'rejected'
+      )
+
+      if (fallidos.length > 0) {
+        setError(
+          'No se pudieron cargar todas las referencias del formulario: ' +
+            fallidos.map((r) => r.reason.message).join(' | ')
+        )
+      }
+
+      setFormulario((actual) => {
+        if (c.length === 0 || v.length === 0) {
+          return actual
+        }
+
+        const existeCliente = c.some(
+          (x) => String(x.id_cliente) === String(actual.id_cliente)
+        )
+
+        const existeVentana = v.some(
+          (x) => String(x.id_ventana_tiempo) === String(actual.id_ventana_tiempo)
+        )
+
+        return {
+          ...actual,
+          id_cliente: existeCliente
+            ? actual.id_cliente
+            : c[0].id_cliente,
+          id_ventana_tiempo: existeVentana
+            ? actual.id_ventana_tiempo
+            : v[0].id_ventana,
+        }
+      })
+    }
+
+    cargarReferenciasDesdeEfecto()
+
+    return () => {
+      montado = false
+    }
+  }, [])
+
 
   function manejarCambio(event) {
     const { name, value } = event.target

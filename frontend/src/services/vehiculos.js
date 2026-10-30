@@ -52,7 +52,8 @@ async function pedir(url, opciones = {}) {
     if (err instanceof TypeError) {
       throw new Error(
         'No se pudo conectar con el servidor. Revisa que el ' +
-          'backend esté corriendo en el puerto 8000.'
+          'backend esté corriendo en el puerto 8000.',
+        { cause: err }
       )
     }
 

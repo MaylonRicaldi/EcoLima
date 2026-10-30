@@ -78,7 +78,7 @@ export default function MapaObstaculos({
   const [tipoCono, setTipoCono] = useState('CONO')
   const [descripcionCono, setDescripcionCono] = useState('')
   const [enviando, setEnviando] = useState(false)
-  const [errorCono, setErrorCono] = useState('')
+  const [, setErrorCono] = useState('')
 
   /* Si hay un cono a medio colocar. Va en estado y no sólo en el
      ref porque el ref no vuelve a pintar la pantalla: el formulario
@@ -175,7 +175,7 @@ export default function MapaObstaculos({
       capa.current = null
       capaCono.current = null
     }
-  }, [])
+  }, [latitud, longitud])
 
   /* Redibuja los conos cada vez que llega la lista.
      Se eliminan los anteriores porque si no se quedan accumulate
@@ -294,7 +294,7 @@ export default function MapaObstaculos({
     return () => {
       m.off('click', manejarClick)
     }
-  }, [onColocar])
+  }, [onColocar, manejarClick])
 
   /* Si ya hay un cono colocado, el siguiente clic lo mueve en
      lugar de colocar otro. Así se corrige la posición sin volver

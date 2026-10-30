@@ -111,7 +111,8 @@ def conductores_disponibles(db):
                 c.hora_disponibilidad_fin,
                 c.horas_max_conduccion,
                 c.horas_conduccion_acumuladas,
-                c.ubicacion_inicio,
+                ST_Y(c.ubicacion_inicio) AS latitud_inicio,
+                ST_X(c.ubicacion_inicio) AS longitud_inicio,
                 c.estado,
                 ARRAY(
                     SELECT l.categoria

@@ -68,7 +68,35 @@ function Conductores() {
   }
 
   useEffect(() => {
-    cargarConductores()
+    let montado = true
+
+    async function cargarConductoresDesdeEfecto() {
+      try {
+        const data = await listarConductores()
+
+        if (!montado) {
+          return
+        }
+
+        setConductores(data)
+      } catch (err) {
+        if (!montado) {
+          return
+        }
+
+        setError(err.message)
+      } finally {
+        if (montado) {
+          setCargando(false)
+        }
+      }
+    }
+
+    cargarConductoresDesdeEfecto()
+
+    return () => {
+      montado = false
+    }
   }, [])
 
   function cambiarCampo(event) {

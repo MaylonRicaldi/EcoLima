@@ -122,7 +122,36 @@ export default function Clientes() {
 
 
   useEffect(() => {
-    cargarClientes()
+    let montado = true
+
+    async function cargarClientesDesdeEfecto() {
+      try {
+        const data = await listarClientes()
+
+        if (!montado) {
+          return
+        }
+
+        setClientes(data)
+        setError('')
+      } catch (err) {
+        if (!montado) {
+          return
+        }
+
+        setError(err.message)
+      } finally {
+        if (montado) {
+          setCargando(false)
+        }
+      }
+    }
+
+    cargarClientesDesdeEfecto()
+
+    return () => {
+      montado = false
+    }
   }, [])
 
 

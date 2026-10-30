@@ -75,7 +75,45 @@ export default function Dashboard() {
 
 
   useEffect(() => {
-    cargar()
+    let montado = true
+
+    async function cargarDesdeEfecto() {
+      try {
+        const [d, i, c, comp, rep] = await Promise.all([
+          obtenerDashboard(),
+          obtenerImpactoAmbiental(),
+          obtenerReporteConsolidado(),
+          listarCompensaciones(),
+          listarReportes(),
+        ])
+
+        if (!montado) {
+          return
+        }
+
+        setDatos(d)
+        setImpacto(i)
+        setConsolidado(c)
+        setCompensaciones(comp)
+        setReportes(rep)
+      } catch (err) {
+        if (!montado) {
+          return
+        }
+
+        setError(err.message)
+      } finally {
+        if (montado) {
+          setCargando(false)
+        }
+      }
+    }
+
+    cargarDesdeEfecto()
+
+    return () => {
+      montado = false
+    }
   }, [])
 
 

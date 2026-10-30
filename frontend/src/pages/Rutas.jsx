@@ -316,8 +316,89 @@ export default function Rutas() {
 
 
   useEffect(() => {
-    cargarRutas()
-    cargarOperacion()
+    let montado = true
+
+    async function cargarRutasDesdeEfecto() {
+      try {
+        const data = await listarRutas()
+
+        if (!montado) {
+          return
+        }
+
+        setRutas(data)
+
+        const activas = (data || []).filter(
+          (r) => r.estado !== 'COMPLETADA' && r.estado !== 'CANCELADA'
+        )
+
+        if (activas.length > 0) {
+          const detalle = await obtenerRuta(activas[0].id_ruta)
+
+          setRutaActual(detalle)
+          setEvaluacion(null)
+        } else {
+          setRutaActual(null)
+        }
+      } catch (err) {
+        if (!montado) {
+          return
+        }
+
+        setError(err.message)
+      } finally {
+        if (montado) {
+          setCargando(false)
+        }
+      }
+    }
+
+    cargarRutasDesdeEfecto()
+
+    return () => {
+      montado = false
+    }
+  }, [])
+
+
+  useEffect(() => {
+    let montado = true
+
+    async function cargarOperacionDesdeEfecto() {
+      try {
+        const [t, i, l, o, p] = await Promise.all([
+          listarTrafico(),
+          listarIncidentes('ACTIVO'),
+          obtenerLocal(),
+          listarObstaculos(),
+          listarPedidos(),
+        ])
+
+        if (!montado) {
+          return
+        }
+
+        setTrafico(t)
+        setIncidentes(i)
+        setLocal(l)
+        setObstaculos(o)
+
+        setPedidosSueltos(
+          (p || []).filter((x) => x.estado === 'PENDIENTE')
+        )
+      } catch {
+        setTrafico([])
+        setIncidentes([])
+        setObstaculos([])
+        setPedidosSueltos([])
+      }
+    }
+
+    cargarOperacionDesdeEfecto()
+
+    return () => {
+      montado = false
+    }
   }, [])
 
 
