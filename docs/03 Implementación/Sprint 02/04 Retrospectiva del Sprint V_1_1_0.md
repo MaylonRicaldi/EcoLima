@@ -1,4 +1,4 @@
-[← Volver al README Principal](../../../../README.md)
+[← Volver al README Principal](../../../README.md)
 
 # Retrospectiva del Sprint
 
