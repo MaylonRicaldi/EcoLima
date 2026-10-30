@@ -83,3 +83,8 @@ id_rsa*
 # ---- Sistema ----
 Thumbs.db
 desktop.ini
+# ---- Scripts de prueba/generación locales ----
+backend/crear_licencias.py
+backend/generar_datos_prueba.py
+backend/generar_datos_prueba2.py
+backend/generar_datos_prueba3.py
