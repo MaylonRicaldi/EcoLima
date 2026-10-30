@@ -62,7 +62,5 @@ Con fecha de cierre del 23 de octubre de 2026, se deja constancia de la revisió
 
 ---
 
-**Documento:** Revisión del Sprint 3  
-**Proyecto:** EcoLima  
-**Fecha:** 23/10/2026  
-**Versión:** 1.0.0
+**Versión del documento:** 1.0.0
+
