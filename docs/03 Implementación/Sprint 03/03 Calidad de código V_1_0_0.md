@@ -46,7 +46,7 @@ Como parte de la actividad del Sprint 03, se documenta el siguiente escenario de
 | Bugs / incidencias de fiabilidad identificadas inicialmente | Corregidas |
 | Code Smells / incidencias de mantenibilidad identificadas inicialmente | Corregidas |
 | Incidencia de seguridad identificada inicialmente | Corregida |
-| Security Hotspots | 0 pendientes |
+| Security Hotspots | 2 pendientes |
 | Duplicación | 0.5 % (sin incremento reportado) |
 | Cobertura | Informe de cobertura no incluido en el registro fuente |
 
