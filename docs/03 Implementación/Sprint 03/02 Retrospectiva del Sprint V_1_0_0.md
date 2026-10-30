@@ -19,7 +19,7 @@ Identificar los aciertos y aprendizajes del Sprint 3 y proponer acciones concret
 ### Relaciones
 
 - **Aciertos:** se presentó el avance al equipo y a los interesados en la revisión del sprint.
-- **Aprendizajes:** los informes se escribieron por separado y algunos datos no coinciden entre sí.
+- **Aprendizajes:** los informes se escribieron por separado y algunos datos se debe mejorar.
 - **Acciones:** que todo el equipo revise los documentos entre sí antes de entregarlos y que en la revisión se indique qué historias quedaron terminadas y cuáles pendientes.
 
 ### Procesos
@@ -31,7 +31,7 @@ Identificar los aciertos y aprendizajes del Sprint 3 y proponer acciones concret
 ### Herramientas
 
 - **Aciertos:** SonarQube, Lighthouse (100/100), axe DevTools (0 incidencias) y WAVE (9.8/10) permitieron medir calidad y accesibilidad.
-- **Aprendizajes:** las herramientas automáticas no detectan todo y falta probar con lector de pantalla. Algunos términos de SonarQube quedaron mal traducidos en los informes.
+- **Aprendizajes:** Algunos términos de SonarQube quedaron mal traducidos en los informes.
 - **Acciones:** probar con un lector de pantalla, usar los mismos términos en todos los informes y guardar las capturas como evidencia.
 
 ## 3. Compromisos para el Sprint 4
