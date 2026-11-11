@@ -1,6 +1,5 @@
 import { expirarSesion } from './auth'
-
-const API_URL = 'http://localhost:8000'
+import { API_URL } from './api'
 
 function obtenerHeaders() {
   const token = localStorage.getItem('access_token')

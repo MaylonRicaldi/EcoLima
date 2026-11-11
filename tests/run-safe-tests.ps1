@@ -1,24 +1,16 @@
 $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
-$python = Join-Path $root '.venv\Scripts\python.exe'
-
-if (-not (Test-Path $python)) {
-    $python = Join-Path $root 'backend\.venv\Scripts\python.exe'
-}
-
-if (-not (Test-Path $python)) {
-    throw 'No se encontró el Python del entorno virtual del proyecto.'
-}
+$backend = Join-Path $root 'backend'
 
 Push-Location (Join-Path $root 'frontend')
 try {
-    npm run lint
+    npm.cmd run lint
     if ($LASTEXITCODE -ne 0) {
         throw 'Falló ESLint.'
     }
 
-    npm run build
+    npm.cmd run build
     if ($LASTEXITCODE -ne 0) {
         throw 'Falló la compilación del frontend.'
     }
@@ -27,16 +19,19 @@ finally {
     Pop-Location
 }
 
-Push-Location (Join-Path $root 'backend')
+Push-Location $backend
 try {
-    & $python -m compileall -q app
+    npm.cmd run test:coverage
     if ($LASTEXITCODE -ne 0) {
-        throw 'Falló la compilación sintáctica del backend.'
+        throw 'Fallaron las pruebas del backend Node.js.'
     }
 
-    & $python tests\prueba_optimizador.py
-    if ($LASTEXITCODE -ne 0) {
-        throw 'Falló la prueba unitaria del optimizador.'
+    $nodeFiles = Get-ChildItem src, test, tools -Recurse -Filter *.js -ErrorAction Stop
+    foreach ($file in $nodeFiles) {
+        node.exe --check $file.FullName
+        if ($LASTEXITCODE -ne 0) {
+            throw "Falló la comprobación de sintaxis: $($file.FullName)"
+        }
     }
 }
 finally {
