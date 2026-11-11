@@ -2,18 +2,10 @@
 # EcoLogística Lima - .gitignore
 # ============================================================
 
-# ---- Python / Backend ----
+# ---- Entornos y backend ----
 .venv/
 venv/
 env/
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-htmlcov/
 .coverage
 .coverage.*
 coverage.xml
@@ -86,8 +78,3 @@ id_rsa*
 # ---- Sistema ----
 Thumbs.db
 desktop.ini
-# ---- Scripts de prueba/generación locales ----
-backend/crear_licencias.py
-backend/generar_datos_prueba.py
-backend/generar_datos_prueba2.py
-backend/generar_datos_prueba3.py

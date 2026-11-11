@@ -2,64 +2,55 @@
 
 ## Ejecución segura
 
-Desde la raíz del repositorio, ejecutar en PowerShell:
+Desde la raíz del repositorio:
 
 ```powershell
 .\tests\run-safe-tests.ps1
 ```
 
-El runner ejecuta lint y build del frontend, compila los módulos Python y
-ejecuta la prueba unitaria del optimizador. No escribe datos en PostgreSQL.
+El runner ejecuta ESLint y la compilación del frontend, la suite Node del
+backend y la comprobación sintáctica de los archivos JavaScript. No escribe
+datos en PostgreSQL.
 
-Para la suite de navegador e integración con datos aislados:
+## Integración y navegador
 
 ```powershell
 .\tests\run-e2e.ps1
 ```
 
-Este comando requiere Docker con el contenedor `ecolima-postgres` activo y
-los puertos 8000/5173 libres. Crea una base temporal nueva, inicializa el
-esquema, levanta API y frontend, ejecuta Cypress y dos pruebas de integración
-del backend y elimina la base temporal al terminar. Nunca apunta a la base
-`ecolima` ni reutiliza sus credenciales.
+Este comando de integración local requiere Docker con el contenedor
+`ecolima-postgres` activo, dependencias instaladas con `npm ci` en `backend/`
+y los puertos 8000/5173 libres. El despliegue no requiere Docker: usa
+PostgreSQL/PostGIS administrado en Render. El runner crea una base temporal, inicializa el esquema,
+prepara datos semilla, inicia la API Node y el frontend, y ejecuta Cypress
+junto con pruebas de integración. Al terminar, elimina solo la base temporal
+creada por la ejecución.
 
-## Pruebas existentes
+Los scripts auxiliares de API y mantenimiento están en `backend/tools/`.
+Algunos crean, actualizan o eliminan datos: ejecútalos únicamente contra una
+base de pruebas aislada, nunca contra una base compartida o de producción.
 
-Las pruebas históricas de backend están en `backend/tests/`. La mayoría son
-scripts funcionales que dependen de la API y de PostgreSQL; varios crean,
-actualizan o eliminan registros. Deben ejecutarse solamente contra una base
-de datos de pruebas aislada, no contra una base compartida o con datos reales.
-
-`backend/tests/prueba_optimizador.py` utiliza casos en memoria. No se
-encontraron configuraciones previas de Cypress, Selenium, pytest o Vitest;
-Cypress se configuró para pruebas E2E del frontend.
-
-## Niveles y evidencia
+## Alcance
 
 | Nivel | Herramienta | Alcance |
 |---|---|---|
-| Unitario | Script Python existente | Cálculos, restricciones y asignación del optimizador |
-| Estático | ESLint, compilación Vite y `compileall` | Calidad básica y sintaxis |
-| Humo de API | HTTP local | Salud de API/BD, endpoint raíz y rechazo sin autenticación |
-| Navegador | Playwright integrado en la sesión | Pantalla de acceso, validación HTML, etiquetas, teclado y ancho móvil |
-| Integración / CRUD | Scripts de `backend/tests/` | No ejecutados en esta corrida; requieren aislamiento de datos |
+| Unitario y contrato | `node --test` y c8 | Autenticación, permisos, rutas, optimización, cálculos y contratos HTTP |
+| Estático | ESLint, Vite y `node --check` | Calidad del frontend y sintaxis JavaScript |
+| Humo de API | HTTP local | Salud de API/BD, endpoint raíz y autorización |
+| Navegador | Cypress | Flujos E2E del frontend |
+| Integración / CRUD | Scripts de `backend/tools/` | Operaciones de API contra base temporal aislada |
 | Accesibilidad | Inspección exploratoria en navegador | Comprobaciones parciales; no reemplaza axe, Lighthouse ni evaluación WCAG completa |
-| Seguridad / calidad | SonarQube | Análisis bloqueado por autenticación; métricas no disponibles |
+| Seguridad / calidad | SonarQube | Importa informes LCOV de cobertura Node y Cypress |
 
-## Resultados observados el 2026-10-30
+## Verificación de la migración
 
 | Comprobación | Resultado |
 |---|---|
-| `npm run lint` | Finalizó sin errores; reportó 3 advertencias de dependencias de hooks |
-| `npm run build` | Compilación correcta; Vite advirtió que el bundle JS supera 500 kB |
-| `python -m compileall -q app` | Correcto |
-| `backend/tests/prueba_optimizador.py` | 31/31 comprobaciones correctas |
-| API `/health` | HTTP 200; base de datos conectada |
-| API `/` | HTTP 200 |
-| API `/clientes` y `/pedidos` sin sesión | HTTP 401 en ambos casos |
-| Navegador: formulario vacío | Los dos campos obligatorios impiden enviar el formulario |
-| Navegador: móvil 390 px | Los campos tienen etiqueta; orden de teclado email, contraseña y botón; sin desbordamiento horizontal |
+| Suite unitaria Node | 32/32 pruebas aprobadas, incluidas rutas usadas por el frontend |
+| Cobertura de líneas backend | 43.03%, aún bajo el objetivo de 80%; LCOV generado en `backend/coverage/lcov.info` |
+| Sintaxis JavaScript del backend | Correcta |
+| Auditoría de dependencias de producción | 0 vulnerabilidades |
+| Integración funcional con PostgreSQL/PostGIS y Cypress | Pendiente: PostgreSQL no estaba disponible |
 
-Estos resultados cubren las comprobaciones indicadas y no implican que todas
-las historias de usuario, navegadores, roles, criterios WCAG ni escenarios de
-producción hayan sido aprobados.
+La suite unitaria no sustituye la integración real con PostgreSQL/PostGIS ni
+la validación de todos los flujos de navegador y roles.

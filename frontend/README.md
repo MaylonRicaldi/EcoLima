@@ -1,16 +1,23 @@
-# React + Vite
+# EcoLima frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplicación React/Vite para EcoLima.
 
-Currently, two official plugins are available:
+## Desarrollo local
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```powershell
+npm install
+npm run dev
+```
 
-## React Compiler
+La API local usa `http://localhost:8000` por defecto. Se puede cambiar con
+`VITE_API_URL`; por ejemplo, crea un archivo `.env.local` con la URL del
+backend. Reinicia Vite después de modificarla.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Vercel
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Configura la raíz del proyecto Vercel como `frontend` y usa el preset Vite.
+Define `VITE_API_URL` con la URL HTTPS del backend desplegado en Render (por
+ejemplo, `https://ecolima-api.onrender.com`, sin barra final). En Render,
+configura `CORS_ORIGIN` con la URL exacta del frontend Vercel. La API y la
+base PostgreSQL/PostGIS se alojan por separado; el frontend no contiene
+credenciales de base de datos.

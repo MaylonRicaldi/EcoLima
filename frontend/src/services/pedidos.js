@@ -1,6 +1,5 @@
 import { getToken, expirarSesion } from './auth'
-
-const API_URL = 'http://localhost:8000'
+import { API_URL } from './api'
 
 function extraerError(datos) {
   const detalle = datos.detail

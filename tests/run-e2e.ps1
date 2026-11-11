@@ -10,12 +10,14 @@ $apiProcess = $null
 $viteProcess = $null
 $createdDatabase = $false
 $completed = $false
+$previousCoverageSetting = $env:CYPRESS_COVERAGE
+$previousPortSetting = $env:PORT
 $logPrefix = Join-Path $env:TEMP $database
 $apiOut = "$logPrefix-api.out.log"
 $apiErr = "$logPrefix-api.err.log"
 $viteOut = "$logPrefix-vite.out.log"
 $viteErr = "$logPrefix-vite.err.log"
-$python = Join-Path $root '.venv\Scripts\python.exe'
+$node = (Get-Command node.exe -ErrorAction Stop).Source
 
 function Get-HttpStatus {
     param([string]$Url)
@@ -46,12 +48,28 @@ function Get-HttpStatus {
     }
 }
 
-if (-not (Test-Path $python)) {
-    $python = Join-Path $root 'backend\.venv\Scripts\python.exe'
+function Test-ApiReady {
+    try {
+        $health = Invoke-RestMethod -Uri 'http://127.0.0.1:8000/health' -TimeoutSec 2
+        return $health.status -eq 'ok' -and $health.database -eq 'connected'
+    }
+    catch {
+        return $false
+    }
 }
 
-if (-not (Test-Path $python)) {
-    throw 'No se encontró el Python del entorno virtual del proyecto.'
+$requiredTools = @(
+    'tools\seed-e2e.js',
+    'tools\prueba_clientes.js',
+    'tools\prueba_permisos.js'
+)
+foreach ($tool in $requiredTools) {
+    if (-not (Test-Path (Join-Path $backend $tool))) {
+        throw "No se encontró la herramienta Node requerida: backend\$tool"
+    }
+}
+if (-not (Test-Path (Join-Path $backend 'node_modules\express\package.json'))) {
+    throw 'Faltan dependencias del backend. Ejecuta npm ci desde backend/.'
 }
 
 $portsInUse = Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue |
@@ -87,6 +105,7 @@ if ($testDatabaseUrl -eq $baseDatabaseUrl) {
 
 $env:DATABASE_URL = $testDatabaseUrl
 $env:JWT_SECRET_KEY = [guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')
+$env:PORT = '8000'
 $env:CYPRESS_E2E_EMAIL = 'admin@ecolima.com'
 $env:CYPRESS_E2E_PASSWORD = 'E2e!' + [guid]::NewGuid().ToString('N') + 'Aa1'
 $env:ECOLIMA_TEST_ADMIN_PASSWORD = $env:CYPRESS_E2E_PASSWORD
@@ -116,7 +135,7 @@ try {
 
     Push-Location $backend
     try {
-        & $python (Join-Path $PSScriptRoot 'seed-e2e.py')
+        & $node (Join-Path $backend 'tools\seed-e2e.js')
         if ($LASTEXITCODE -ne 0) {
             throw 'Falló la creación de datos semilla para E2E.'
         }
@@ -126,15 +145,15 @@ try {
     }
 
     $apiProcess = Start-Process `
-        -FilePath $python `
-        -ArgumentList @('-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', '8000') `
+        -FilePath $node `
+        -ArgumentList @( (Join-Path $backend 'src\server.js') ) `
         -WorkingDirectory $backend `
         -RedirectStandardOutput $apiOut `
         -RedirectStandardError $apiErr `
         -PassThru
 
-    $node = (Get-Command node.exe -ErrorAction Stop).Source
     $viteEntry = Join-Path $frontend 'node_modules\vite\bin\vite.js'
+    $env:CYPRESS_COVERAGE = '1'
     $viteProcess = Start-Process `
         -FilePath $node `
         -ArgumentList @($viteEntry, '--host', 'localhost', '--port', '5173', '--strictPort') `
@@ -142,6 +161,12 @@ try {
         -RedirectStandardOutput $viteOut `
         -RedirectStandardError $viteErr `
         -PassThru
+    if ($null -eq $previousCoverageSetting) {
+        Remove-Item Env:CYPRESS_COVERAGE -ErrorAction SilentlyContinue
+    }
+    else {
+        $env:CYPRESS_COVERAGE = $previousCoverageSetting
+    }
 
     $apiReady = $false
     $viteReady = $false
@@ -151,7 +176,7 @@ try {
     for ($attempt = 0; $attempt -lt 45; $attempt++) {
         if (-not $apiReady) {
             $apiStatus = Get-HttpStatus 'http://127.0.0.1:8000/health'
-            $apiReady = $apiStatus -eq 200
+            $apiReady = $apiStatus -eq 200 -and (Test-ApiReady)
         }
 
         if (-not $viteReady) {
@@ -185,12 +210,12 @@ try {
 
     Push-Location $backend
     try {
-        & $python tests\prueba_clientes.py
+        & $node tools\prueba_clientes.js
         if ($LASTEXITCODE -ne 0) {
             throw 'Falló la integración de clientes y permisos.'
         }
 
-        & $python tests\prueba_permisos.py
+        & $node tools\prueba_permisos.js
         if ($LASTEXITCODE -ne 0) {
             throw 'Falló la integración de permisos por rol.'
         }
@@ -205,9 +230,21 @@ try {
 finally {
     Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
     Remove-Item Env:JWT_SECRET_KEY -ErrorAction SilentlyContinue
+    if ($null -eq $previousPortSetting) {
+        Remove-Item Env:PORT -ErrorAction SilentlyContinue
+    }
+    else {
+        $env:PORT = $previousPortSetting
+    }
     Remove-Item Env:CYPRESS_E2E_EMAIL -ErrorAction SilentlyContinue
     Remove-Item Env:CYPRESS_E2E_PASSWORD -ErrorAction SilentlyContinue
     Remove-Item Env:ECOLIMA_TEST_ADMIN_PASSWORD -ErrorAction SilentlyContinue
+    if ($null -eq $previousCoverageSetting) {
+        Remove-Item Env:CYPRESS_COVERAGE -ErrorAction SilentlyContinue
+    }
+    else {
+        $env:CYPRESS_COVERAGE = $previousCoverageSetting
+    }
 
     foreach ($process in @($apiProcess, $viteProcess)) {
         if ($process -and -not $process.HasExited) {
