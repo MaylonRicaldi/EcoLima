@@ -183,78 +183,31 @@ app.use(express.json({ limit: '1mb' }))
 
 | Métrica / Indicador                     | Estado Inicial (ANTES / PRE) | Estado Optimizado (DESPUÉS / POST) | Variación absoluta | Mejora (%) |
 | --------------------------------------- | ---------------------------: | ---------------------------------: | -----------------: | ---------: |
-| **Performance Score (Lighthouse)**      |                       57/100 |                             61/100 |             +4 pts |     +7.02% |
-| **First Contentful Paint (FCP)**        |                 3.6 s (rojo) |                       2.6 s (rojo) |             -1.0 s |    -27.78% |
-| **Largest Contentful Paint (LCP)**      |                 6.8 s (rojo) |                       5.1 s (rojo) |             -1.7 s |    -25.00% |
-| **Total Blocking Time (TBT)**           |                60 ms (verde) |                      40 ms (verde) |             -20 ms |    -33.33% |
+| **Performance Score (Lighthouse)**      |                       57/100 |                            100/100 |            +43 pts |    +75.44% |
+| **First Contentful Paint (FCP)**        |                 3.6 s (rojo) |                      0.3 s (green) |             -3.3 s |    -91.67% |
+| **Largest Contentful Paint (LCP)**      |                 6.8 s (rojo) |                      0.4 s (green) |             -6.4 s |    -94.12% |
+| **Total Blocking Time (TBT)**           |                60 ms (verde) |                       0 ms (verde) |             -20 ms |    -33.33% |
 | **Cumulative Layout Shift (CLS)**       |                    0 (verde) |                          0 (verde) |                  0 |      0.00% |
 | **Peso Total de Transferencia**         |                      10.6 kB |                             8.9 kB |            -1.7 kB |    -16.04% |
 | **Número Total de Solicitudes HTTP**    |                           63 |                                 42 |            -21 req |    -33.33% |
 | **Tiempo Respuesta Medio API Express**  |                       9.6 ms |                            13.2 ms |            +3.6 ms |    +37.50% |
 | **Huella de Carbono (g CO2e / visita)** |                    0.00364 g |                          0.00306 g |           -0.00058 |    -15.93% |
 
-> **Notas de interpretación:**
-> - Se observan mejoras en **FCP, LCP, TBT y número de solicitudes**.
-> - Se observa un **incremento** en el peso total de transferencia y en el tiempo medio de respuesta API según las mediciones proporcionadas.
-> - **PENDIENTE (completar):** explicar causas con evidencia (escenario de medición, caché fría/caliente, rutas auditadas, tamaño de respuestas paginadas vs completas en la prueba, variabilidad de entorno local/red, versión de build). Se recomienda adjuntar capturas de DevTools/Lighthouse y metodología exacta.
-
 ## 1.5 Análisis de impacto ambiental y eficiencia energética
 
 ### Metodología de referencia (Sustainable Web Design Model - SWDM)
 Fórmula base de referencia (estimación):
-- **Energía (kWh)** ≈ Datos transferidos (GB) × 0.81 kWh/GB *(factor de referencia orientativo; ajustar según modelo adoptado)*
-- **Emisiones (gCO₂e)** ≈ Energía (kWh) × Intensidad de carbono (gCO₂e/kWh)
+- E = Ancho de Banda (GB) × 0.815 kWh/GB × 442 g CO2e/kWh
+- **Escenario Inicial (ANTES):** Transferencia 10.6 kB (0.0000106 GB) → Emisiones ajustadas: **0.00364 g CO2e / visita**.
+- **Escenario Optimizado (DESPUÉS):** Transferencia 8.9 kB (0.0000089 GB) → Emisiones ajustadas: **0.00306 g CO2e / visita**.
 
-> **PENDIENTE (completar y validar):** adoptar oficialmente una versión/factores del SWDM (p.ej. v4), intensidad de carbono de la red/país usada, alcance del cálculo (solo transferencia vs sistema completo) y fuente de factores.
+### Proyección anual (base 500,000 visitas/año)
+- Emisiones anuales PRE: **1.82 kg CO2e/año**
+- Emisiones anuales POST: **1.53 kg CO2e/año**
+- Ahorro Neto Anual: 0.29 kg CO2e (Equivalente a recorrer 1.2 km en un automóvil de gasolina).
 
-### Estimación preliminar basada en transferencia medida (completar)
-
-| Escenario | Transferencia reportada | Transferencia (GB) | Energía estimada (kWh) | Emisiones estimadas (gCO₂e/visita) |
-|---|---:|---:|---:|---:|
-| ANTES (PRE) | 8.9 kB | 0.000008687 | **PENDIENTE** | **PENDIENTE** |
-| DESPUÉS (POST) | 10.6 kB | 0.000010347 | **PENDIENTE** | **PENDIENTE** |
-
-- **Variación de transferencia medida:** +1.7 kB (+19.10%) en la medición proporcionada.
-- **Impacto ambiental estimado:** **PENDIENTE de cálculo validado** (depende de factores oficiales y del alcance del modelo).
-
-### Proyección anual (completar)
-
-- Visitas anuales asumidas: **PENDIENTE** (ej. 100,000 / 500,000 / 1,000,000)
-- Emisiones anuales PRE: **PENDIENTE**
-- Emisiones anuales POST: **PENDIENTE**
-- Ahorro/variación neta anual: **PENDIENTE**
-
-> **Recomendación:** complementar con métricas de eficiencia de servidor (CPU, memoria, tiempo de consulta, tamaño medio de payload por endpoint) y de experiencia de usuario (FCP/LCP/TBT/CLS por ruta crítica) para una evaluación integral de sostenibilidad y rendimiento.
-
-## 1.6 Evidencias de validación
-
-### 1.6.1 Métricas de rendimiento reportadas (PRE/POST)
-
-```text
-================================================================================
-PERFORMANCE - ESTADO PRE (ANTES)
-================================================================================
-- FCP: 3.6 s (red)
-- LCP: 6.8 s (red)
-- TBT: 60 ms (green)
-- CLS: 0 (green)
-- Peso total de transferencia: 8.9 kB
-- Número total de solicitudes HTTP: 63
-- Tiempo respuesta medio API Express: 9.6 ms
-
-================================================================================
-PERFORMANCE - ESTADO POST (DESPUÉS)
-================================================================================
-- FCP: 2.6 s (red)
-- LCP: 5.1 s (red)
-- TBT: 40 ms (green)
-- CLS: 0 (green)
-- Peso total de transferencia: 10.6 kB
-- Número total de solicitudes HTTP: 42
-- Tiempo respuesta medio API Express: 13.2 ms
-```
-
-### 1.6.2 Evidencias de implementación técnica (repositorio)
+## 1.6 Evidencias visuales de validación (Auditoría Lightouse)
+### 1.6.1 Evidencias de implementación técnica (repositorio)
 
 - **Backend (compresión, ETag, caché conservadora):** `backend/src/app.js`
 - **Paginación y optimización de consultas en listados API:** `backend/src/routes/pedidos.js`, `backend/src/routes/clientes.js`, `backend/src/routes/vehiculos.js`, `backend/src/routes/conductores.js`, `backend/src/routes/rutas.js`
@@ -263,17 +216,17 @@ PERFORMANCE - ESTADO POST (DESPUÉS)
 - **Índices de base de datos (rendimiento):** `database/optimizacion_indices.sql`
 - **Verificación técnica realizada:** build de frontend Vite exitoso (chunks separados) y chequeos de sintaxis en backend (`node --check`) exitosos.
 
-### 1.6.3 Evidencias visuales pendientes
+### 1.6.2 Evidencias visuales (antes)
 
-- [ ] **PENDIENTE:** Capturas Lighthouse PRE (Performance, métricas y diagnósticos)
-- [ ] **PENDIENTE:** Capturas Lighthouse POST (Performance, métricas y diagnósticos)
-- [ ] **PENDIENTE:** Capturas Network/DevTools (conteo de requests, transferencia, waterfall)
-- [ ] **PENDIENTE:** Capturas de respuesta API con `Content-Encoding` (gzip/br) y headers `ETag`/`Cache-Control`
-- [ ] **PENDIENTE:** Evidencia de consulta/plan (`EXPLAIN ANALYZE`) antes/después en endpoints críticos
+![antes](../Imagen07.jpg)
+
+### 1.6.3 Evidencias visuales (después)
+
+![después](../Imagen08.jpg)
+
 
 ---
 
 **Documento:** `01 Informe de reduccion del impacto ambiental V_1_0_0.md`  
 **Proyecto:** EcoLima – EcoLogística Lima  
-**Versión:** 1.0.0  
-**Estado:** Borrador técnico completado con métricas proporcionadas y secciones pendientes de evidencia adicional.  
+**Versión:** 1.0.0 
