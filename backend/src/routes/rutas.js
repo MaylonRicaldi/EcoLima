@@ -35,6 +35,13 @@ function endpoint(handler) {
   }
 }
 
+function parsePagination(query, { defaultLimit = 12, maxLimit = 50 } = {}) {
+  if (query.page === undefined && query.limit === undefined) return null
+  const page = Math.max(parseInt(query.page, 10) || 1, 1)
+  const limit = Math.min(Math.max(parseInt(query.limit, 10) || defaultLimit, 1), maxLimit)
+  return { page, limit, offset: (page - 1) * limit }
+}
+
 function parseId(value, field) {
   if (!/^[+-]?\d+$/.test(String(value))) {
     throw new HttpError(422, [{
@@ -324,15 +331,39 @@ export function createRutasRouter(options) {
 
   router.get('', authenticate, read, endpoint(async (req, res) => {
     const driverId = await driverIdFor(pool, req.user)
-    const { rows } = await pool.query(
-      `SELECT ${ROUTE_COLUMNS} FROM rutas r
-       WHERE ($1::text IS NULL OR r.estado = $1)
+    const estado = req.query.estado ?? null
+    const where = `WHERE ($1::text IS NULL OR r.estado = $1)
          AND ($2::integer IS NULL OR EXISTS (
            SELECT 1 FROM asignaciones a
            WHERE a.id_ruta = r.id_ruta AND a.id_conductor = $2
-         ))
+         ))`
+    const values = [estado, driverId]
+    const pagination = parsePagination(req.query)
+    if (pagination) {
+      const [rowsRes, countRes] = await Promise.all([
+        pool.query(
+          `SELECT ${ROUTE_COLUMNS} FROM rutas r ${where}
+           ORDER BY r.fecha DESC, r.id_ruta DESC
+           LIMIT $3 OFFSET $4`,
+          [...values, pagination.limit, pagination.offset]
+        ),
+        pool.query(`SELECT COUNT(*)::int AS total FROM rutas r ${where}`, values),
+      ])
+      const total = countRes.rows[0]?.total ?? 0
+      return res.json({
+        data: rowsRes.rows.map((row) => numericRow(row, routeNumberFields)),
+        pagination: {
+          total,
+          page: pagination.page,
+          limit: pagination.limit,
+          totalPages: Math.ceil(total / pagination.limit),
+        },
+      })
+    }
+    const { rows } = await pool.query(
+      `SELECT ${ROUTE_COLUMNS} FROM rutas r ${where}
        ORDER BY r.fecha DESC, r.id_ruta DESC`,
-      [req.query.estado ?? null, driverId]
+      values
     )
     return res.json(rows.map((row) => numericRow(row, routeNumberFields)))
   }))

@@ -78,8 +78,9 @@ async function procesarRespuesta(response) {
   return data
 }
 
-export async function listarVehiculos() {
-  return pedir('/vehiculos', { method: 'GET' })
+export async function listarVehiculos({ page = 1, limit = 12 } = {}) {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+  return pedir(`/vehiculos?${params.toString()}`, { method: 'GET' })
 }
 
 export async function obtenerVehiculo(id) {

@@ -1,3 +1,4 @@
+import compression from 'compression'
 import express from 'express'
 import cors from 'cors'
 import { createAuthMiddleware } from './middleware/auth.js'
@@ -25,6 +26,9 @@ export function createApp({ pool, config }) {
     jwtAlgorithm: config.jwtAlgorithm,
   })
 
+  app.use(compression({ threshold: 1024 }))
+  app.set('etag', 'strong')
+
   app.use(cors({
     origin: config.corsOrigin,
     credentials: true,
@@ -32,6 +36,14 @@ export function createApp({ pool, config }) {
     allowedHeaders: ['Authorization', 'Content-Type'],
   }))
   app.use(express.json({ limit: '1mb' }))
+
+  // Política de caché conservadora para datos operativos/autenticados
+  app.use((req, res, next) => {
+    if (req.path !== '/health' && req.path !== '/') {
+      res.set('Cache-Control', 'private, no-store')
+    }
+    next()
+  })
   app.use('/auth', createAuthRouter({
     pool,
     config,

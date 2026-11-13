@@ -39,6 +39,15 @@ function endpoint(handler) {
   }
 }
 
+function parsePagination(query, { defaultLimit = 12, maxLimit = 50 } = {}) {
+  const hasPage = query.page !== undefined
+  const hasLimit = query.limit !== undefined
+  if (!hasPage && !hasLimit) return null
+  const page = Math.max(parseInt(query.page, 10) || 1, 1)
+  const limit = Math.min(Math.max(parseInt(query.limit, 10) || defaultLimit, 1), maxLimit)
+  return { page, limit, offset: (page - 1) * limit }
+}
+
 function addError(errors, field, message, type = 'value_error', loc = 'body') {
   errors.push({ loc: [loc, field], msg: message, type })
 }
@@ -187,6 +196,9 @@ async function transaction(pool, callback) {
 const PEDIDO_COLUMNS = `p.id_pedido, p.id_cliente, p.id_ventana_tiempo,
   p.direccion_entrega, p.referencia, p.latitud, p.longitud, p.peso_kg,
   p.volumen_m3, p.prioridad, p.tipo_producto, p.estado, p.fecha_registro`
+const PEDIDO_LIST_COLUMNS = `p.id_pedido, p.id_cliente, p.id_ventana_tiempo,
+  p.direccion_entrega, p.prioridad, p.tipo_producto, p.estado, p.fecha_registro,
+  p.peso_kg, p.volumen_m3`
 const PEDIDO_RETURNING = `id_pedido, id_cliente, id_ventana_tiempo,
   direccion_entrega, referencia, latitud, longitud, peso_kg, volumen_m3,
   prioridad, tipo_producto, estado, fecha_registro`
@@ -199,30 +211,64 @@ function serializePedido(row) {
   return result
 }
 
-async function selectPedidos(pool, user, id) {
+async function buildPedidosScope(pool, user) {
   const values = []
   const conditions = []
   if (isCustomer(user)) {
     const customerId = await customerIdFor(pool, user)
-    if (customerId == null) return []
+    if (customerId == null) return { empty: true, values, conditions }
     values.push(customerId)
     conditions.push(`p.id_cliente = $${values.length}`)
   } else if (isDriver(user)) {
     const orderIds = [...(await orderIdsForDriver(pool, user) ?? [])].sort((a, b) => a - b)
-    if (orderIds.length === 0) return []
+    if (orderIds.length === 0) return { empty: true, values, conditions }
     values.push(orderIds)
     conditions.push(`p.id_pedido = ANY($${values.length}::integer[])`)
   }
+  return { empty: false, values, conditions }
+}
+
+async function selectPedidos(pool, user, id, pagination = null) {
+  const scope = await buildPedidosScope(pool, user)
+  if (scope.empty) return pagination ? { data: [], pagination: { total: 0, page: pagination.page, limit: pagination.limit, totalPages: 0 } } : []
+  const values = [...scope.values]
+  const conditions = [...scope.conditions]
   if (id !== undefined) {
     values.push(id)
     conditions.push(`p.id_pedido = $${values.length}`)
   }
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+
+  if (pagination) {
+    const listValues = [...values, pagination.limit, pagination.offset]
+    const limitIdx = values.length + 1
+    const offsetIdx = values.length + 2
+    const [rowsRes, countRes] = await Promise.all([
+      pool.query(
+        `SELECT ${PEDIDO_LIST_COLUMNS} FROM pedidos p ${where} ORDER BY p.id_pedido DESC LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+        listValues
+      ),
+      pool.query(`SELECT COUNT(*)::int AS total FROM pedidos p ${where}`, values),
+    ])
+    const total = countRes.rows[0]?.total ?? 0
+    return {
+      data: rowsRes.rows.map(serializePedido),
+      pagination: {
+        total,
+        page: pagination.page,
+        limit: pagination.limit,
+        totalPages: Math.ceil(total / pagination.limit),
+      },
+    }
+  }
+
+  const columns = id !== undefined ? PEDIDO_COLUMNS : PEDIDO_LIST_COLUMNS
+  const order = id !== undefined ? 'ORDER BY p.id_pedido' : 'ORDER BY p.id_pedido DESC'
   const { rows } = await pool.query(
-    `SELECT ${PEDIDO_COLUMNS} FROM pedidos p ${where} ORDER BY p.id_pedido`,
+    `SELECT ${columns} FROM pedidos p ${where} ${order}`,
     values
   )
-  return rows
+  return rows.map(serializePedido)
 }
 
 async function routeForPedido(client, idPedido) {
@@ -307,14 +353,19 @@ export function createPedidosRouter({ pool, authenticate, requirePermission }) {
   const write = [authenticate, requirePermission('pedidos', OPERATIONS.WRITE)]
 
   router.get('', ...read, endpoint(async (req, res) => {
-    return res.json((await selectPedidos(pool, req.user)).map(serializePedido))
+    const pagination = parsePagination(req.query)
+    if (pagination) {
+      return res.json(await selectPedidos(pool, req.user, undefined, pagination))
+    }
+    return res.json(await selectPedidos(pool, req.user))
   }))
 
   router.get('/:id_pedido', ...read, endpoint(async (req, res) => {
     const id = pathId(req.params.id_pedido, 'id_pedido')
     const rows = await selectPedidos(pool, req.user, id)
-    if (!rows[0]) throw new HttpError(404, 'El pedido no existe')
-    return res.json(serializePedido(rows[0]))
+    const list = Array.isArray(rows) ? rows : []
+    if (!list[0]) throw new HttpError(404, 'El pedido no existe')
+    return res.json(serializePedido(list[0]))
   }))
 
   router.post('', ...write, endpoint(async (req, res) => {

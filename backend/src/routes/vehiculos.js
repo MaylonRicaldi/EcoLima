@@ -167,13 +167,35 @@ function responseRow(row) {
   return result
 }
 
+function parsePagination(query, { defaultLimit = 12, maxLimit = 50 } = {}) {
+  if (query.page === undefined && query.limit === undefined) return null
+  const page = Math.max(parseInt(query.page, 10) || 1, 1)
+  const limit = Math.min(Math.max(parseInt(query.limit, 10) || defaultLimit, 1), maxLimit)
+  return { page, limit, offset: (page - 1) * limit }
+}
+
 export function createVehiculosRouter({ pool, authenticate, requirePermission }) {
   const router = Router()
   const read = requirePermission('vehiculos', OPERATIONS.READ)
   const write = requirePermission('vehiculos', OPERATIONS.WRITE)
 
-  router.get('', authenticate, read, async (_req, res, next) => {
+  router.get('', authenticate, read, async (req, res, next) => {
     try {
+      const pagination = parsePagination(req.query)
+      if (pagination) {
+        const [rowsRes, countRes] = await Promise.all([
+          pool.query(
+            `SELECT ${VEHICLE_COLUMNS} FROM vehiculos ORDER BY id_vehiculo LIMIT $1 OFFSET $2`,
+            [pagination.limit, pagination.offset]
+          ),
+          pool.query('SELECT COUNT(*)::int AS total FROM vehiculos'),
+        ])
+        const total = countRes.rows[0]?.total ?? 0
+        return res.json({
+          data: rowsRes.rows.map(responseRow),
+          pagination: { total, page: pagination.page, limit: pagination.limit, totalPages: Math.ceil(total / pagination.limit) },
+        })
+      }
       const { rows } = await pool.query(`SELECT ${VEHICLE_COLUMNS} FROM vehiculos ORDER BY id_vehiculo`)
       return res.json(rows.map(responseRow))
     } catch (error) {

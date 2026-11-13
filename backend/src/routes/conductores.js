@@ -335,11 +335,32 @@ export function createConductoresRouter({ pool, authenticate, requirePermission 
     c.horas_max_conduccion, c.horas_conduccion_acumuladas, c.estado,
     u.email AS usuario_email`
 
-  router.get('', ...conductorRead, endpoint(async (_req, res) => {
+  const parsePagination = (query, { defaultLimit = 12, maxLimit = 50 } = {}) => {
+    if (query.page === undefined && query.limit === undefined) return null
+    const page = Math.max(parseInt(query.page, 10) || 1, 1)
+    const limit = Math.min(Math.max(parseInt(query.limit, 10) || defaultLimit, 1), maxLimit)
+    return { page, limit, offset: (page - 1) * limit }
+  }
+
+  router.get('', ...conductorRead, endpoint(async (req, res) => {
+    const pagination = parsePagination(req.query)
+    const baseSql = `FROM conductores c LEFT JOIN usuarios u ON u.id_usuario = c.id_usuario`
+    if (pagination) {
+      const [rowsRes, countRes] = await Promise.all([
+        pool.query(
+          `SELECT ${conductorColumns} ${baseSql} ORDER BY c.id_conductor LIMIT $1 OFFSET $2`,
+          [pagination.limit, pagination.offset]
+        ),
+        pool.query(`SELECT COUNT(*)::int AS total ${baseSql}`),
+      ])
+      const total = countRes.rows[0]?.total ?? 0
+      return res.json({
+        data: rowsRes.rows.map(serializeConductor),
+        pagination: { total, page: pagination.page, limit: pagination.limit, totalPages: Math.ceil(total / pagination.limit) },
+      })
+    }
     const { rows } = await pool.query(
-      `SELECT ${conductorColumns}
-       FROM conductores c LEFT JOIN usuarios u ON u.id_usuario = c.id_usuario
-       ORDER BY c.id_conductor`
+      `SELECT ${conductorColumns} ${baseSql} ORDER BY c.id_conductor`
     )
     return res.json(rows.map(serializeConductor))
   }))

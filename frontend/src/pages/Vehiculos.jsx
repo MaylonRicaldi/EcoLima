@@ -66,6 +66,7 @@ function convertirDatosFormulario(formulario) {
 
 export default function Vehiculos() {
   const [vehiculos, setVehiculos] = useState([])
+  const [paginacion, setPaginacion] = useState({ page: 1, totalPages: 1, total: 0, limit: 12 })
   const [formulario, setFormulario] = useState(formularioInicial)
   const [vehiculoEditando, setVehiculoEditando] = useState(null)
   const [modalAbierto, setModalAbierto] = useState(false)
@@ -77,14 +78,15 @@ export default function Vehiculos() {
   const [mensaje, setMensaje] = useState('')
 
 
-  async function cargarVehiculos() {
+  async function cargarVehiculos(pagina = 1) {
     try {
       setCargando(true)
       setError('')
 
-      const data = await listarVehiculos()
-
+      const respuesta = await listarVehiculos({ page: pagina, limit: 12 })
+      const data = Array.isArray(respuesta) ? respuesta : (respuesta.data ?? [])
       setVehiculos(data)
+      if (!Array.isArray(respuesta) && respuesta.pagination) setPaginacion(respuesta.pagination)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -98,13 +100,15 @@ export default function Vehiculos() {
 
     async function cargarVehiculosDesdeEfecto() {
       try {
-        const data = await listarVehiculos()
+        const respuesta = await listarVehiculos({ page: 1, limit: 12 })
 
         if (!montado) {
           return
         }
 
+        const data = Array.isArray(respuesta) ? respuesta : (respuesta.data ?? [])
         setVehiculos(data)
+        if (!Array.isArray(respuesta) && respuesta.pagination) setPaginacion(respuesta.pagination)
         setError('')
       } catch (err) {
         if (!montado) {
@@ -205,7 +209,7 @@ export default function Vehiculos() {
       }
 
       limpiarFormulario()
-      await cargarVehiculos()
+      await cargarVehiculos(paginacion.page)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -233,7 +237,7 @@ export default function Vehiculos() {
         `Estado cambiado a ${nuevoEstado}.`,
       )
 
-      await cargarVehiculos()
+      await cargarVehiculos(paginacion.page)
     } catch (err) {
       setError(err.message)
     }
@@ -685,6 +689,14 @@ export default function Vehiculos() {
 
           </div>
 
+        )}
+
+        {!cargando && paginacion.totalPages > 1 && (
+          <div className="paginacion">
+            <button type="button" className="boton-secundario" onClick={() => cargarVehiculos(paginacion.page - 1)} disabled={paginacion.page <= 1}>Anterior</button>
+            <span>Página {paginacion.page} de {paginacion.totalPages} ({paginacion.total} registros)</span>
+            <button type="button" className="boton-secundario" onClick={() => cargarVehiculos(paginacion.page + 1)} disabled={paginacion.page >= paginacion.totalPages}>Siguiente</button>
+          </div>
         )}
 
       </section>

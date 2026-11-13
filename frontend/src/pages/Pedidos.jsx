@@ -50,6 +50,7 @@ function Pedidos() {
   )
 
   const [pedidos, setPedidos] = useState([])
+  const [pedidosPaginacion, setPedidosPaginacion] = useState({ page: 1, totalPages: 1, total: 0, limit: 12 })
   const [clientes, setClientes] = useState([])
   const [ventanas, setVentanas] = useState([])
   const [clienteActual, setClienteActual] = useState(null)
@@ -82,13 +83,19 @@ function Pedidos() {
   const [error, setError] = useState('')
   const [mensaje, setMensaje] = useState('')
 
-  async function cargarPedidos() {
+  async function cargarPedidos(pagina = 1) {
     try {
       setCargando(true)
       setError('')
 
-      const datos = await listarPedidos()
-      setPedidos(datos)
+      const respuesta = await listarPedidos({ page: pagina, limit: 12 })
+      const lista = Array.isArray(respuesta) ? respuesta : (respuesta.data ?? [])
+      setPedidos(lista)
+      if (!Array.isArray(respuesta) && respuesta.pagination) {
+        setPedidosPaginacion(respuesta.pagination)
+      } else {
+        setPedidosPaginacion({ page: 1, totalPages: 1, total: lista.length, limit: 12 })
+      }
     } catch (error) {
       setError(error.message)
     } finally {
@@ -99,14 +106,13 @@ function Pedidos() {
   async function cargarReferencias() {
     // allSettled: que falle una referencia no debe descartar la otra.
     const [resClientes, resVentanas] = await Promise.allSettled([
-      listarClientes(),
+      listarClientes({ page: 1, limit: 100 }),
       listarVentanasDisponibles(),
     ])
 
-    const c =
-      resClientes.status === 'fulfilled' ? resClientes.value : []
-    const v =
-      resVentanas.status === 'fulfilled' ? resVentanas.value : []
+    const clientesResp = resClientes.status === 'fulfilled' ? resClientes.value : []
+    const c = Array.isArray(clientesResp) ? clientesResp : (clientesResp.data ?? [])
+    const v = resVentanas.status === 'fulfilled' ? resVentanas.value : []
 
     setClientes(c)
     setVentanas(v)
@@ -152,13 +158,17 @@ function Pedidos() {
 
     async function cargarPedidosDesdeEfecto() {
       try {
-        const datos = await listarPedidos()
+        const respuesta = await listarPedidos({ page: 1, limit: 12 })
 
         if (!montado) {
           return
         }
 
-        setPedidos(datos)
+        const lista = Array.isArray(respuesta) ? respuesta : (respuesta.data ?? [])
+        setPedidos(lista)
+        if (!Array.isArray(respuesta) && respuesta.pagination) {
+          setPedidosPaginacion(respuesta.pagination)
+        }
         setError('')
       } catch (error) {
         if (!montado) {
@@ -187,7 +197,7 @@ function Pedidos() {
     async function cargarReferenciasDesdeEfecto() {
       // allSettled: que falle una referencia no debe descartar la otra.
       const [resClientes, resVentanas] = await Promise.allSettled([
-        listarClientes(),
+        listarClientes({ page: 1, limit: 100 }),
         listarVentanasDisponibles(),
       ])
 
@@ -195,10 +205,9 @@ function Pedidos() {
         return
       }
 
-      const c =
-        resClientes.status === 'fulfilled' ? resClientes.value : []
-      const v =
-        resVentanas.status === 'fulfilled' ? resVentanas.value : []
+      const clientesResp = resClientes.status === 'fulfilled' ? resClientes.value : []
+      const c = Array.isArray(clientesResp) ? clientesResp : (clientesResp.data ?? [])
+      const v = resVentanas.status === 'fulfilled' ? resVentanas.value : []
 
       setClientes(c)
       setVentanas(v)
@@ -696,7 +705,7 @@ function Pedidos() {
         setMensaje('Pedido creado correctamente')
       }
 
-      await cargarPedidos()
+      await cargarPedidos(pedidosPaginacion.page)
       limpiarFormulario()
     } catch (error) {
       setError(error.message)
@@ -711,7 +720,7 @@ function Pedidos() {
       await cambiarEstadoPedido(id, estado)
 
       setMensaje('Estado actualizado correctamente')
-      await cargarPedidos()
+      await cargarPedidos(pedidosPaginacion.page)
     } catch (error) {
       setError(error.message)
     }
@@ -1332,6 +1341,30 @@ function Pedidos() {
           </table>
         )}
       </div>
+
+      {!cargando && pedidosPaginacion.totalPages > 1 && (
+        <div className="paginacion">
+          <button
+            type="button"
+            className="boton-secundario"
+            onClick={() => cargarPedidos(pedidosPaginacion.page - 1)}
+            disabled={pedidosPaginacion.page <= 1}
+          >
+            Anterior
+          </button>
+          <span>
+            Página {pedidosPaginacion.page} de {pedidosPaginacion.totalPages} ({pedidosPaginacion.total} registros)
+          </span>
+          <button
+            type="button"
+            className="boton-secundario"
+            onClick={() => cargarPedidos(pedidosPaginacion.page + 1)}
+            disabled={pedidosPaginacion.page >= pedidosPaginacion.totalPages}
+          >
+            Siguiente
+          </button>
+        </div>
+      )}
     </div>
   )
 }

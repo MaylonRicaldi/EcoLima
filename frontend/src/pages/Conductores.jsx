@@ -15,6 +15,7 @@ import Modal from '../components/Modal'
 
 function Conductores() {
   const [conductores, setConductores] = useState([])
+  const [paginacion, setPaginacion] = useState({ page: 1, totalPages: 1, total: 0, limit: 12 })
   const [conductorEditando, setConductorEditando] = useState(null)
   const [modalConductor, setModalConductor] = useState(false)
 
@@ -55,11 +56,13 @@ function Conductores() {
   const [formularioLicencia, setFormularioLicencia] =
     useState(licenciaInicial)
 
-  async function cargarConductores() {
+  async function cargarConductores(pagina = 1) {
     try {
       setCargando(true)
-      const data = await listarConductores()
+      const respuesta = await listarConductores({ page: pagina, limit: 12 })
+      const data = Array.isArray(respuesta) ? respuesta : (respuesta.data ?? [])
       setConductores(data)
+      if (!Array.isArray(respuesta) && respuesta.pagination) setPaginacion(respuesta.pagination)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -72,13 +75,15 @@ function Conductores() {
 
     async function cargarConductoresDesdeEfecto() {
       try {
-        const data = await listarConductores()
+        const respuesta = await listarConductores({ page: 1, limit: 12 })
 
         if (!montado) {
           return
         }
 
+        const data = Array.isArray(respuesta) ? respuesta : (respuesta.data ?? [])
         setConductores(data)
+        if (!Array.isArray(respuesta) && respuesta.pagination) setPaginacion(respuesta.pagination)
       } catch (err) {
         if (!montado) {
           return
@@ -170,7 +175,7 @@ function Conductores() {
       }
 
       limpiarFormulario()
-      await cargarConductores()
+      await cargarConductores(paginacion.page)
     } catch (err) {
       setError(err.message)
     }
@@ -221,7 +226,7 @@ function Conductores() {
       )
 
       setMensaje('Estado del conductor actualizado')
-      await cargarConductores()
+      await cargarConductores(paginacion.page)
     } catch (err) {
       setError(err.message)
     }
@@ -644,6 +649,13 @@ function Conductores() {
               ))}
             </tbody>
           </table>
+        )}
+        {!cargando && paginacion.totalPages > 1 && (
+          <div className="paginacion">
+            <button type="button" className="boton-secundario" onClick={() => cargarConductores(paginacion.page - 1)} disabled={paginacion.page <= 1}>Anterior</button>
+            <span>Página {paginacion.page} de {paginacion.totalPages} ({paginacion.total} registros)</span>
+            <button type="button" className="boton-secundario" onClick={() => cargarConductores(paginacion.page + 1)} disabled={paginacion.page >= paginacion.totalPages}>Siguiente</button>
+          </div>
         )}
       </section>
 

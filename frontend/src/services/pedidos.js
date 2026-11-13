@@ -65,8 +65,9 @@ async function solicitud(endpoint, opciones = {}) {
   return datos
 }
 
-export async function listarPedidos() {
-  return solicitud('/pedidos')
+export async function listarPedidos({ page = 1, limit = 12 } = {}) {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+  return solicitud(`/pedidos?${params.toString()}`)
 }
 
 export async function obtenerPedido(id) {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import {
   BrowserRouter,
   Navigate,
@@ -17,14 +17,15 @@ import {
 
 import BarraLateral from './components/BarraLateral'
 
-import Vehiculos from './pages/Vehiculos'
-import Conductores from './pages/Conductores'
-import Clientes from './pages/Clientes'
-import Pedidos from './pages/Pedidos'
-import Rutas from './pages/Rutas'
-import Operacion from './pages/Operacion'
-import Conductor from './pages/Conductor'
-import Dashboard from './pages/Dashboard'
+// Carga diferida por ruta para reducir el bundle inicial
+const Vehiculos = lazy(() => import('./pages/Vehiculos'))
+const Conductores = lazy(() => import('./pages/Conductores'))
+const Clientes = lazy(() => import('./pages/Clientes'))
+const Pedidos = lazy(() => import('./pages/Pedidos'))
+const Rutas = lazy(() => import('./pages/Rutas'))
+const Operacion = lazy(() => import('./pages/Operacion'))
+const Conductor = lazy(() => import('./pages/Conductor'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
 
 import './App.css'
 import './BarraLateral.css'
@@ -358,6 +359,7 @@ function AppContenido() {
 
 
   return (
+    <Suspense fallback={<div className="cargando-modulo" aria-live="polite">Cargando módulo…</div>}>
     <Routes>
 
       {/* LOGIN */}
@@ -590,6 +592,7 @@ function AppContenido() {
       />
 
     </Routes>
+    </Suspense>
   )
 }
 

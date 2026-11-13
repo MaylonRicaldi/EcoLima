@@ -212,6 +212,13 @@ function idValidation(name) {
   }
 }
 
+function parsePagination(query, { defaultLimit = 12, maxLimit = 50 } = {}) {
+  if (query.page === undefined && query.limit === undefined) return null
+  const page = Math.max(parseInt(query.page, 10) || 1, 1)
+  const limit = Math.min(Math.max(parseInt(query.limit, 10) || defaultLimit, 1), maxLimit)
+  return { page, limit, offset: (page - 1) * limit }
+}
+
 function run(handler) {
   return (req, res, next) => Promise.resolve(handler(req, res)).catch(next)
 }
@@ -256,7 +263,22 @@ export function createClientesRouter({ pool, authenticate, requirePermission }) 
     return rows[0] ? windowResponse(rows[0]) : null
   }
 
-  router.get('', authenticate, read, run(async (_req, res) => {
+  router.get('', authenticate, read, run(async (req, res) => {
+    const pagination = parsePagination(req.query)
+    if (pagination) {
+      const [rowsRes, countRes] = await Promise.all([
+        pool.query(
+          `SELECT ${CLIENT_COLUMNS} FROM clientes c ORDER BY c.nombre LIMIT $1 OFFSET $2`,
+          [pagination.limit, pagination.offset]
+        ),
+        pool.query('SELECT COUNT(*)::int AS total FROM clientes'),
+      ])
+      const total = countRes.rows[0]?.total ?? 0
+      return res.json({
+        data: rowsRes.rows.map(customerResponse),
+        pagination: { total, page: pagination.page, limit: pagination.limit, totalPages: Math.ceil(total / pagination.limit) },
+      })
+    }
     const { rows } = await pool.query(`SELECT ${CLIENT_COLUMNS} FROM clientes c ORDER BY c.nombre`)
     return res.json(rows.map(customerResponse))
   }))

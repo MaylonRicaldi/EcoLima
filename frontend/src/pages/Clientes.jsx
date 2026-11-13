@@ -84,6 +84,7 @@ function convertirDatosFormulario(formulario) {
 
 export default function Clientes() {
   const [clientes, setClientes] = useState([])
+  const [paginacion, setPaginacion] = useState({ page: 1, totalPages: 1, total: 0, limit: 12 })
   const [formulario, setFormulario] =
     useState(formularioInicial)
   const [clienteEditando, setClienteEditando] =
@@ -105,14 +106,15 @@ export default function Clientes() {
   const [mensaje, setMensaje] = useState('')
 
 
-  async function cargarClientes() {
+  async function cargarClientes(pagina = 1) {
     try {
       setCargando(true)
       setError('')
 
-      const data = await listarClientes()
-
+      const respuesta = await listarClientes({ page: pagina, limit: 12 })
+      const data = Array.isArray(respuesta) ? respuesta : (respuesta.data ?? [])
       setClientes(data)
+      if (!Array.isArray(respuesta) && respuesta.pagination) setPaginacion(respuesta.pagination)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -126,13 +128,15 @@ export default function Clientes() {
 
     async function cargarClientesDesdeEfecto() {
       try {
-        const data = await listarClientes()
+        const respuesta = await listarClientes({ page: 1, limit: 12 })
 
         if (!montado) {
           return
         }
 
+        const data = Array.isArray(respuesta) ? respuesta : (respuesta.data ?? [])
         setClientes(data)
+        if (!Array.isArray(respuesta) && respuesta.pagination) setPaginacion(respuesta.pagination)
         setError('')
       } catch (err) {
         if (!montado) {
@@ -272,7 +276,7 @@ export default function Clientes() {
       }
 
       limpiarFormulario()
-      await cargarClientes()
+      await cargarClientes(paginacion.page)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -297,7 +301,7 @@ export default function Clientes() {
         `Estado cambiado a ${nuevoEstado}.`
       )
 
-      await cargarClientes()
+      await cargarClientes(paginacion.page)
     } catch (err) {
       setError(err.message)
     }
@@ -717,6 +721,14 @@ export default function Clientes() {
 
             </table>
 
+          </div>
+        )}
+
+        {!cargando && paginacion.totalPages > 1 && (
+          <div className="paginacion">
+            <button type="button" className="boton-secundario" onClick={() => cargarClientes(paginacion.page - 1)} disabled={paginacion.page <= 1}>Anterior</button>
+            <span>Página {paginacion.page} de {paginacion.totalPages} ({paginacion.total} registros)</span>
+            <button type="button" className="boton-secundario" onClick={() => cargarClientes(paginacion.page + 1)} disabled={paginacion.page >= paginacion.totalPages}>Siguiente</button>
           </div>
         )}
 

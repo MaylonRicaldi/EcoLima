@@ -69,8 +69,9 @@ async function solicitud(url, opciones = {}) {
 // CONDUCTORES
 // ============================================================
 
-export async function listarConductores() {
-  return solicitud('/conductores')
+export async function listarConductores({ page = 1, limit = 12 } = {}) {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+  return solicitud(`/conductores?${params.toString()}`)
 }
 
 export async function obtenerConductor(idConductor) {
