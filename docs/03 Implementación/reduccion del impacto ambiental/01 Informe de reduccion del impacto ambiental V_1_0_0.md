@@ -1,3 +1,4 @@
+[← Volver al README Principal](../../../README.md)
 # 1. Informe de Reducción del Impacto Ambiental y Optimización (EcoLima)
 
 ## 1.1 Introducción y propósito del informe

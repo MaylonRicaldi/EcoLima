@@ -1,3 +1,4 @@
+[← Volver al README Principal](../../../README.md)
 # 2. Estándares de Ingeniería de Software y Guía de Desarrollo Verde (EcoLima)
 
 ## 2.1 Relación de estándares internacionales aplicados
