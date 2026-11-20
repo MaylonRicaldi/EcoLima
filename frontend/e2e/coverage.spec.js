@@ -56,9 +56,10 @@ const apiResponses = {
     carga_kg_libre: 0,
     carga_m3_libre: 0,
   },
-  '/clientes': { data: [], pagination: { total: 0, page: 1, limit: 12, totalPages: 0 } },
-  '/conductores': { data: [], pagination: { total: 0, page: 1, limit: 12, totalPages: 0 } },
-  '/vehiculos': { data: [], pagination: { total: 0, page: 1, limit: 12, totalPages: 0 } },
+  '/clientes': { data: [], pagination: { total: 13, page: 1, limit: 12, totalPages: 2 } },
+  '/conductores': { data: [], pagination: { total: 13, page: 1, limit: 12, totalPages: 2 } },
+  '/pedidos': { data: [], pagination: { total: 13, page: 1, limit: 12, totalPages: 2 } },
+  '/vehiculos': { data: [], pagination: { total: 13, page: 1, limit: 12, totalPages: 2 } },
 }
 const dashboardRoute = {
   id_ruta: 1,
@@ -69,6 +70,10 @@ const dashboardRoute = {
   combustible_litros: 2,
   costo_total: 20,
   co2_kg: 4,
+  algoritmo_utilizado: 'SA',
+  pedidos: [],
+  asignacion: null,
+  indicador: null,
 }
 
 function mergeCoverage(target, source) {
@@ -107,6 +112,7 @@ test('collects coverage from authenticated Sprint 04 modules', async ({ page, br
 
   let reportData = []
   let dashboardPage = false
+  let routeOptimizationComplete = false
   await page.route('**/*', async (interceptedRoute) => {
     const request = interceptedRoute.request()
     const url = new URL(request.url())
@@ -132,6 +138,18 @@ test('collects coverage from authenticated Sprint 04 modules', async ({ page, br
       await interceptedRoute.fulfill({ json: report })
       return
     }
+    if (url.pathname === '/rutas/optimizar' && request.method() === 'POST') {
+      routeOptimizationComplete = true
+      await interceptedRoute.fulfill({
+        json: {
+          rutas_creadas: [{ id_ruta: dashboardRoute.id_ruta }],
+          pedidos_no_planificados: [{ id_pedido: 8, motivo: 'Sin conductor' }],
+          advertencias: ['Cobertura de prueba'],
+          segundos_resueltos: 0.1,
+        },
+      })
+      return
+    }
     if (url.pathname === '/reportes') {
       await interceptedRoute.fulfill({ json: reportData })
       return
@@ -142,8 +160,19 @@ test('collects coverage from authenticated Sprint 04 modules', async ({ page, br
       })
       return
     }
-    if (url.pathname === '/rutas' && dashboardPage) {
+    if (url.pathname === '/rutas/1') {
+      await interceptedRoute.fulfill({ json: dashboardRoute })
+      return
+    }
+    if (url.pathname === '/rutas' && (dashboardPage || routeOptimizationComplete)) {
       await interceptedRoute.fulfill({ json: [dashboardRoute] })
+      return
+    }
+
+    if (apiResponses[url.pathname]?.pagination && request.method() === 'GET') {
+      const response = JSON.parse(JSON.stringify(apiResponses[url.pathname]))
+      response.pagination.page = Number(url.searchParams.get('page') ?? 1)
+      await interceptedRoute.fulfill({ json: response })
       return
     }
 
@@ -168,6 +197,11 @@ test('collects coverage from authenticated Sprint 04 modules', async ({ page, br
     await expect(page.getByRole('heading', { name: heading })).toBeVisible()
     await page.waitForTimeout(150)
 
+    if (['/clientes', '/conductores', '/pedidos', '/vehiculos'].includes(pathname)) {
+      await page.getByRole('button', { name: 'Siguiente' }).click()
+      await expect(page.getByText(/2 de 2/)).toBeVisible()
+    }
+
     if (dashboardPage) {
       await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
       await page.getByRole('button', { name: 'Calcular plan de compensación' }).click()
@@ -178,6 +212,13 @@ test('collects coverage from authenticated Sprint 04 modules', async ({ page, br
       await page.getByRole('button', { name: 'Reporte de TCO' }).click()
       await expect(page.getByText(/Reporte generado:/)).toBeVisible()
       await page.getByRole('button', { name: 'Descargar CSV' }).click()
+    }
+
+    if (pathname === '/rutas') {
+      await expect(page.getByText(/No hay rutas generadas/)).toBeVisible()
+      await page.getByRole('button', { name: 'Optimizar rutas' }).click()
+      await expect(page.getByText(/Se generaron 1 ruta/)).toBeVisible()
+      await expect(page.getByText(/Pedido 8:/)).toBeVisible()
     }
 
     await page.waitForTimeout(100)
