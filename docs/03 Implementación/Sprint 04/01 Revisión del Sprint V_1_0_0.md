@@ -50,7 +50,9 @@ Los tipos admitidos por el registro son `SOSTENIBILIDAD`, `TCO`, `COMPENSACION` 
 
 **Alcance que debe distinguirse:** el código revisado registra metadatos del reporte y un nombre de archivo en `ruta_archivo`. La implementación inspeccionada no demuestra que se genere y almacene físicamente un archivo CSV descargable. Por ello, la generación física, descarga y contenido final del archivo deben validarse o completarse antes de declarar terminada esa parte del requerimiento.
 
-**Validación pendiente:** probar permisos, tipos admitidos, identificadores de ruta inexistentes, listado y consolidado; verificar también si el archivo existe realmente en el almacenamiento configurado.
+**Corrección aplicada:** se incorporó el servicio `backend/src/services/reportes.js`, que genera CSV con encabezados y datos reales de PostgreSQL, y el contenido se persiste en `contenido_csv` mediante la migración preparada de Sprint 04. El endpoint `GET /reportes/:id/descargar` entrega el archivo con `Content-Disposition`.
+
+**Validación pendiente:** aplicar la migración en Neon de pruebas y ejecutar una generación real de cada tipo, una descarga y una comprobación de permisos con datos controlados.
 
 ### 3.3. HU-11 – Plan de compensación de carbono
 
@@ -60,7 +62,9 @@ El cálculo utiliza el parámetro del proyecto de **22 kg de CO₂ por árbol al
 
 El frontend permite solicitar el cálculo, presenta el resultado y lista los planes registrados.
 
-**Validación pendiente:** comprobar el cálculo con datos conocidos, verificar el valor generado de árboles en PostgreSQL, probar el caso sin rutas y comprobar las restricciones de permisos de lectura y escritura.
+**Corrección aplicada:** el cálculo del backend utiliza redondeo hacia arriba y la migración cambia la columna generada a `CEIL(co2_a_compensar_kg / factor_captura_arbol_kg)`. El backend rechaza cantidades negativas, nulas, no numéricas y mayores que las emisiones totales.
+
+**Validación pendiente:** aplicar la migración en Neon de pruebas y comprobar los ejemplos 22, 44, 50, 100, 220 y 500 kg en frontend, backend y base de datos.
 
 ## 4. Definition of Done (DoD)
 
@@ -70,7 +74,7 @@ El frontend permite solicitar el cálculo, presenta el resultado y lista los pla
 | Persistencia de información | Consultas a indicadores_ruta, reportes y compensacion_carbono | Implementación identificada |
 | Autenticación y permisos | Middleware authenticate y requirePermission en endpoints | Implementación identificada |
 | Validación funcional en entorno desplegado | No se adjuntó un registro de ejecución completo de HU-09, HU-10 y HU-11 | Pendiente de evidencia |
-| Pruebas E2E con Playwright | No se encontró configuración ni dependencia Playwright en los package.json revisados | Pendiente |
+| Pruebas E2E con Playwright | Configuración, Chromium, Firefox y WebKit declarados; dos pruebas locales ejecutadas | Parcial |
 | Evidencias de aceptación en Jira | No se proporcionaron enlaces de PR o tickets cerrados para estas HU | Pendiente |
 | Documentación del sprint | Documentos de Sprint 4 | Elaborada en este corte |
 

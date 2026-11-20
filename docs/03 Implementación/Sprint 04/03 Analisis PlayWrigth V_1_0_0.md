@@ -13,16 +13,15 @@
 
 Definir y documentar la estrategia de pruebas End-to-End (E2E) para HU-09, HU-10 y HU-11, incluyendo la configuración de Playwright, los flujos críticos, el monitoreo de rendimiento y la verificación de disponibilidad.
 
-## 2. Estado técnico encontrado
+## 2. Estado técnico verificado
 
-En los archivos `frontend/package.json` y `backend/package.json` revisados:
-
-- El frontend utiliza React y Vite.
-- El frontend tiene Cypress declarado como dependencia de desarrollo y scripts `cy:run` y `cy:open`.
-- No se encontró Playwright declarado como dependencia ni un archivo `playwright.config.ts` o `playwright.config.js` en las rutas revisadas.
-- El backend utiliza Node.js, Express y pruebas nativas mediante `node --test`.
-
-Por tanto, este documento no presenta ejecuciones ficticias ni tasas de éxito inventadas. La suite Playwright debe instalarse, configurarse y ejecutarse para completar la consigna.
+- Frontend React/Vite y Cypress continúan presentes.
+- Playwright fue agregado como dependencia de desarrollo.
+- Existe `frontend/playwright.config.js`.
+- Las pruebas se encuentran en `frontend/e2e/`.
+- Chromium fue instalado y ejecutado.
+- Firefox y WebKit están declarados en la configuración y en el workflow de CI.
+- El backend mantiene 34 pruebas Node `node:test` aprobadas al corte.
 
 ## 3. Arquitectura propuesta para las pruebas
 
@@ -151,6 +150,11 @@ El uptime debe calcularse a partir de un intervalo de monitoreo definido y de re
 
 ## 8. Reportes y evidencias
 
+Evidencias visuales capturadas el 19 de noviembre de 2026:
+
+- [Interfaz pública desplegada](./evidencias/frontend-raiz.png)
+- [Respuesta de salud del backend](./evidencias/backend-health.png)
+
 Después de incorporar y ejecutar Playwright:
 
 ```bash
@@ -173,17 +177,21 @@ Los directorios `playwright-report/` y `test-results/` deben mantenerse fuera de
 
 | Aspecto | Estado verificado |
 |---|---|
-| Frontend React/Vite | Presente en el repositorio |
-| Cypress | Declarado en frontend/package.json |
-| Playwright | No declarado en el package.json revisado |
-| Configuración Playwright | No encontrada en las rutas revisadas |
-| Suite E2E HU-09/HU-10/HU-11 | Pendiente de implementación y ejecución |
-| Métricas TTFB, FCP y LCP | Pendientes de medición |
-| Reporte HTML Playwright | Pendiente de generación |
+| Frontend React/Vite | Presente |
+| Cypress | Conservado |
+| Playwright | Instalado |
+| Configuración Playwright | Implementada |
+| Prueba de protección de `/dashboard` | Aprobada en Chromium |
+| Prueba de autenticación visual | Aprobada en Chromium |
+| Backend Node | 34 pruebas aprobadas |
+| Frontend build | Aprobado |
+| Firefox y WebKit | Configurados para CI; ejecución local completa pendiente |
+| Métricas TTFB, FCP y LCP | Pendientes de medición externa repetida |
+| Reporte HTML Playwright | Generable con `npm run test:e2e`; artifacts configurados en CI |
 
 ## 10. Conclusión
 
-El código actual permite identificar los principales flujos de HU-09, HU-10 y HU-11 y los endpoints que deben cubrirse. Sin embargo, la consigna solicita específicamente Playwright y no se encontró esa herramienta configurada en los archivos de dependencias revisados. Por ello, la suite, sus ejecuciones, las métricas y el reporte HTML constituyen actividades necesarias para completar este entregable.
+La suite Playwright quedó configurada y dos pruebas locales críticas fueron aprobadas en Chromium. La cobertura HU-09/HU-10/HU-11 debe ampliarse con datos y cuentas de Neon de pruebas antes de declarar las historias completas. Firefox y WebKit quedaron preparados en configuración y CI. Las métricas Web Vitals y el SUS requieren mediciones y participantes reales; no se presentan valores fabricados.
 
 ---
 

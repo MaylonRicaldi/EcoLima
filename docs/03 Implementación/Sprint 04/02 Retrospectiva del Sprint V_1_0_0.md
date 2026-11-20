@@ -20,6 +20,7 @@ Analizar el trabajo relacionado con HU-09 Dashboard de indicadores, HU-10 Report
 - Los cálculos ambientales deben documentar el factor utilizado. EcoLima contempla 22 kg de CO₂ capturados por árbol al año para la equivalencia definida en el proyecto.
 - La existencia de endpoints y componentes no sustituye las pruebas de aceptación ni las pruebas E2E.
 - La evaluación de usabilidad necesita respuestas reales de participantes; no es correcto estimar un puntaje SUS sin aplicar el cuestionario.
+- La protección visual de botones no sustituye la autorización del backend.
 
 ## 3. ¿Qué estamos haciendo bien?
 
