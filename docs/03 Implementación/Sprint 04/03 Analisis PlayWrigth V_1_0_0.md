@@ -305,26 +305,13 @@ Ese resultado indica que el ambiente de verificación no tiene salida a esas URL
 
 ## 8. Reportes y evidencias
 
-Evidencias visuales capturadas el 19 de noviembre de 2026:
-
-- [Interfaz pública desplegada](./evidencias/frontend-raiz.png)
-- [Respuesta de salud del backend](./evidencias/backend-health.png)
-- [Reporte HTML de Playwright: resumen de 27 pruebas aprobadas](./evidencias/playwright-reporte-resumen.png)
-- [Reporte HTML de Playwright: métricas Web Vitals del Dashboard](./evidencias/playwright-web-vitals-dashboard.png)
-- [Reporte HTML de Playwright: tiempos de respuesta de la API](./evidencias/playwright-tiempos-api.png)
-
-![Reporte HTML de Playwright](./evidencias/playwright-reporte-resumen.png)
-
 Evidencias de la revisión, incluidas en la entrega junto con este documento:
 
 - `reporte-html-playwright.zip`: reporte HTML completo de la ejecución en Chromium (27 aprobadas, 1 omitida). Abrir `index.html`.
 - Captura del resumen del reporte HTML, con la lista de pruebas y los contadores.
 - Captura del detalle de API-08, con los 10 llamados a cada endpoint y sus tiempos.
 - Captura de los pasos de E2E-05, la generación de un reporte de sostenibilidad.
-
-<img width="1280" height="800" alt="image" src="https://github.com/user-attachments/assets/172941d8-801c-48d0-b9d7-b179c62c98a2" />
-<img width="1280" height="800" alt="image" src="https://github.com/user-attachments/assets/7a1ea734-ffec-4a8e-89cf-a201173d1d2f" />
-
+  
 Después de incorporar y ejecutar Playwright:
 
 ```bash
@@ -364,6 +351,9 @@ Los directorios `playwright-report/` y `test-results/` deben mantenerse fuera de
 | Defectos D1 y D2 | Corregidos en el parche verificado (sección 6.2); pendientes de incorporar a `main` |
 | Uptime en entorno desplegado | No medido; protocolo propuesto en la sección 7.2 |
 | Reporte HTML Playwright | Generado; capturas en `evidencias/`; artifacts configurados en CI |
+
+<img width="1280" height="800" alt="image" src="https://github.com/user-attachments/assets/172941d8-801c-48d0-b9d7-b179c62c98a2" />
+<img width="1280" height="800" alt="image" src="https://github.com/user-attachments/assets/7a1ea734-ffec-4a8e-89cf-a201173d1d2f" />
 
 ## 10. Conclusión
 
