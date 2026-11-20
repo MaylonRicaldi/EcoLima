@@ -380,11 +380,5 @@ Fuera del alcance de HU-09, HU-10 y HU-11, las pruebas de calidad del sistema co
 
 ---
 
-## Historial de cambios
-
-| Versión | Fecha | Cambio |
-|---|---|---|
-| 1.1.0 | 20/11/2026 | Versión de la suite y del análisis. |
-
 **Versión del documento:** 1.1.0
 
