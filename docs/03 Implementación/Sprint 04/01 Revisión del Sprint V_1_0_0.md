@@ -40,7 +40,6 @@ En el backend, `backend/src/routes/indicadores.js` expone el recurso `GET /dashb
 - Los valores agregados nulos se convierten a cero y se redondean a dos decimales.
 - El frontend presenta estados de carga, error y opción para reintentar la consulta.
 
-**Validación pendiente:** ejecutar el flujo con usuarios de los roles autorizados y contrastar los valores mostrados con consultas directas a PostgreSQL en el entorno de pruebas o producción.
 
 ### 3.2. HU-10 – Reportes de sostenibilidad
 
@@ -52,7 +51,6 @@ Los tipos admitidos por el registro son `SOSTENIBILIDAD`, `TCO`, `COMPENSACION` 
 
 **Corrección aplicada:** se incorporó el servicio `backend/src/services/reportes.js`, que genera CSV con encabezados y datos reales de PostgreSQL, y el contenido se persiste en `contenido_csv` mediante la migración preparada de Sprint 04. El endpoint `GET /reportes/:id/descargar` entrega el archivo con `Content-Disposition`.
 
-**Validación pendiente:** aplicar la migración en Neon de pruebas y ejecutar una generación real de cada tipo, una descarga y una comprobación de permisos con datos controlados.
 
 ### 3.3. HU-11 – Plan de compensación de carbono
 
@@ -64,7 +62,13 @@ El frontend permite solicitar el cálculo, presenta el resultado y lista los pla
 
 **Corrección aplicada:** el cálculo del backend utiliza redondeo hacia arriba y la migración cambia la columna generada a `CEIL(co2_a_compensar_kg / factor_captura_arbol_kg)`. El backend rechaza cantidades negativas, nulas, no numéricas y mayores que las emisiones totales.
 
-**Validación pendiente:** aplicar la migración en Neon de pruebas y comprobar los ejemplos 22, 44, 50, 100, 220 y 500 kg en frontend, backend y base de datos.
+**Validación de Historias de Usuario**
+
+Se presenta el video de demostración funcional de EcoLima, donde se evidencia la ejecución y validación de las historias de usuario implementadas durante el Sprint 04.
+
+🎥 **Video de demostración:**
+
+[▶ Ver demostración de las Historias de Usuario en YouTube](https://youtu.be/FnRbY-6k8JA)
 
 ## 4. Definition of Done (DoD)
 
