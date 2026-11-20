@@ -135,7 +135,7 @@ export default function Rutas() {
 
       const data = await listarRutas()
 
-      setRutas(data)
+      setRutas(Array.isArray(data) ? data : [])
 
       // Las rutas que ya se realizaron son registro histórico, no
       // trabajo pendiente. No se elige como ruta actual ninguna que
@@ -143,7 +143,7 @@ export default function Rutas() {
       // hecha con sus entregas marcadas como pendientes, porque eso
       // es lo que hacía que el mapa y el panel insistieran en la
       // operación que ya terminó.
-      const activas = (data || []).filter(
+      const activas = (Array.isArray(data) ? data : []).filter(
         (r) => r.estado !== 'COMPLETADA' && r.estado !== 'CANCELADA'
       )
 
@@ -428,24 +428,34 @@ export default function Rutas() {
       })
 
 
-      if (data.rutas_creadas.length > 0) {
+      const rutasCreadas = Array.isArray(data.rutas_creadas)
+        ? data.rutas_creadas
+        : []
+      const pedidosNoPlanificados = Array.isArray(data.pedidos_no_planificados)
+        ? data.pedidos_no_planificados
+        : []
+      const advertencias = Array.isArray(data.advertencias)
+        ? data.advertencias
+        : []
+
+      if (rutasCreadas.length > 0) {
         setMensaje(
-          `Se generaron ${data.rutas_creadas.length} ruta(s) ` +
+          `Se generaron ${rutasCreadas.length} ruta(s) ` +
             `en ${data.segundos_resueltos}s.`
         )
 
         await cargarRutas()
-        await seleccionarRuta(data.rutas_creadas[0].id_ruta)
+        await seleccionarRuta(rutasCreadas[0].id_ruta)
       } else {
         setMensaje(
           'No se generaron rutas nuevas.'
         )
       }
 
-      data.advertencias?.forEach((a) => setError(a))
+      advertencias.forEach((a) => setError(a))
 
-      if (data.pedidos_no_planificados.length > 0) {
-        data.pedidos_no_planificados.forEach((p) =>
+      if (pedidosNoPlanificados.length > 0) {
+        pedidosNoPlanificados.forEach((p) =>
           setError(
             (prev) =>
               `${prev ? `${prev} ` : ''}Pedido ${

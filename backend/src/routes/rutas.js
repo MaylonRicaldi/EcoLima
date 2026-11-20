@@ -298,7 +298,7 @@ export function createRutasRouter(options) {
       }
     }
     const elapsedSeconds = () => Number(process.hrtime.bigint() - started) / 1e9
-    const [created] = await transaction(pool, (client) => persistOptimization(
+    const created = await transaction(pool, (client) => persistOptimization(
       client, problem, planned, date, req.user.id_usuario, input.algoritmo, elapsedSeconds()
     ))
     const seconds = Number(elapsedSeconds().toFixed(3))

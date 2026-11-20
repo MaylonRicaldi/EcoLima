@@ -85,7 +85,7 @@ export default function Operacion() {
       try {
         const m = await obtenerMapaRutas()
 
-        setRutasMapa(m.rutas || [])
+        setRutasMapa(Array.isArray(m?.rutas) ? m.rutas : [])
       } catch {
         setRutasMapa([])
       }
@@ -100,7 +100,7 @@ export default function Operacion() {
         id_conductor: idConductor,
       })
 
-      setRutasMapa(m.rutas || [])
+      setRutasMapa(Array.isArray(m?.rutas) ? m.rutas : [])
     } catch {
       setRutasMapa([])
     } finally {
@@ -142,16 +142,16 @@ export default function Operacion() {
         listarObstaculos(),
       ])
 
-      setTrafico(t)
-      setIncidentes(i)
-      setObstaculos(o)
+      setTrafico(Array.isArray(t) ? t : [])
+      setIncidentes(Array.isArray(i) ? i : [])
+      setObstaculos(Array.isArray(o) ? o : [])
 
       /* Los conductores, para poder preguntar de quién es el
          incidente antes de abrir el mapa. */
       try {
         const c = await listarConductores()
 
-        setConductores(c || [])
+        setConductores(Array.isArray(c) ? c : (c?.data ?? []))
 
         /* Si quien está dentro es conductor, no hay nada que elegir:
            el reporte es suyo y preguntárselo sería una tontería.
@@ -171,7 +171,7 @@ export default function Operacion() {
       try {
         const m = await obtenerMapaRutas()
 
-        setRutasMapa(m.rutas || [])
+        setRutasMapa(Array.isArray(m?.rutas) ? m.rutas : [])
       } catch {
         /* El mapa funciona sin las rutas de fondo: se pierde el
            contexto, no la función. */
@@ -294,16 +294,16 @@ export default function Operacion() {
           return
         }
 
-        setTrafico(t)
-        setIncidentes(i)
-        setObstaculos(o)
+        setTrafico(Array.isArray(t) ? t : [])
+        setIncidentes(Array.isArray(i) ? i : [])
+        setObstaculos(Array.isArray(o) ? o : [])
 
         /* Los conductores, para poder preguntar de quién es el
            incidente antes de abrir el mapa. */
         try {
           const c = await listarConductores()
 
-          setConductores(c || [])
+          setConductores(Array.isArray(c) ? c : (c?.data ?? []))
 
           /* Si quien está dentro es conductor, no hay nada que elegir:
              el reporte es suyo y preguntárselo sería una tontería.
@@ -323,7 +323,7 @@ export default function Operacion() {
         try {
           const m = await obtenerMapaRutas()
 
-          setRutasMapa(m.rutas || [])
+          setRutasMapa(Array.isArray(m?.rutas) ? m.rutas : [])
         } catch {
           /* El mapa funciona sin las rutas de fondo: se pierde el
              contexto, no la función. */
@@ -425,7 +425,8 @@ export default function Operacion() {
          se quiere ver después de reportar: el incidente nuevo, en
          su sitio, sobre SU recorrido. */
       try {
-        setIncidentes(await listarIncidentes())
+        const incidentesActualizados = await listarIncidentes()
+        setIncidentes(Array.isArray(incidentesActualizados) ? incidentesActualizados : [])
       } catch {
         /* Si la lista no vuelve, el reporte se guardó igual; lo que
            falta es el reflejo en pantalla. */
@@ -494,7 +495,7 @@ export default function Operacion() {
           </strong>
 
           <ul>
-            {saturacion.motivos.map((m) => (
+            {(Array.isArray(saturacion.motivos) ? saturacion.motivos : []).map((m) => (
               <li key={m}>{m}</li>
             ))}
           </ul>
