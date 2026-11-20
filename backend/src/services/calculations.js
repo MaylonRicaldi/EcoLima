@@ -110,7 +110,9 @@ export function calculateTco(distanceKm, vehicle) {
 
 export function equivalentTrees(co2Kg, kgPerTree = PARAMS.co2PerTreePerYearKg) {
   if (kgPerTree <= 0) return 0
-  return round(co2Kg / kgPerTree)
+  const emissions = Number(co2Kg)
+  if (!Number.isFinite(emissions) || emissions <= 0) return 0
+  return Math.ceil(emissions / kgPerTree)
 }
 
 export function toHour(value) {

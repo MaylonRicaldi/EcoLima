@@ -8,6 +8,8 @@ import {
   listarCompensaciones,
   generarReporte,
   listarReportes,
+  descargarReporte,
+  listarRutas,
 } from '../services/operacion'
 import Esqueleto from '../components/Esqueleto'
 
@@ -40,6 +42,8 @@ export default function Dashboard() {
   const [consolidado, setConsolidado] = useState(null)
   const [compensaciones, setCompensaciones] = useState([])
   const [reportes, setReportes] = useState([])
+  const [rutas, setRutas] = useState([])
+  const [rutaReporte, setRutaReporte] = useState('')
 
   const [cargando, setCargando] = useState(true)
   const [trabajando, setTrabajando] = useState(false)
@@ -53,12 +57,13 @@ export default function Dashboard() {
       setCargando(true)
       setError('')
 
-      const [d, i, c, comp, rep] = await Promise.all([
+      const [d, i, c, comp, rep, rutasDisponibles] = await Promise.all([
         obtenerDashboard(),
         obtenerImpactoAmbiental(),
         obtenerReporteConsolidado(),
         listarCompensaciones(),
         listarReportes(),
+        listarRutas(),
       ])
 
       setDatos(d)
@@ -66,6 +71,7 @@ export default function Dashboard() {
       setConsolidado(c)
       setCompensaciones(comp)
       setReportes(rep)
+      setRutas(rutasDisponibles)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -75,45 +81,10 @@ export default function Dashboard() {
 
 
   useEffect(() => {
-    let montado = true
-
-    async function cargarDesdeEfecto() {
-      try {
-        const [d, i, c, comp, rep] = await Promise.all([
-          obtenerDashboard(),
-          obtenerImpactoAmbiental(),
-          obtenerReporteConsolidado(),
-          listarCompensaciones(),
-          listarReportes(),
-        ])
-
-        if (!montado) {
-          return
-        }
-
-        setDatos(d)
-        setImpacto(i)
-        setConsolidado(c)
-        setCompensaciones(comp)
-        setReportes(rep)
-      } catch (err) {
-        if (!montado) {
-          return
-        }
-
-        setError(err.message)
-      } finally {
-        if (montado) {
-          setCargando(false)
-        }
-      }
-    }
-
-    cargarDesdeEfecto()
-
-    return () => {
-      montado = false
-    }
+    const timer = window.setTimeout(() => {
+      void cargar()
+    }, 0)
+    return () => window.clearTimeout(timer)
   }, [])
 
 
@@ -148,7 +119,10 @@ export default function Dashboard() {
       setError('')
       setMensaje('')
 
-      const rep = await generarReporte(tipo)
+      const rep = await generarReporte(
+        tipo,
+        rutaReporte ? Number(rutaReporte) : null,
+      )
 
       setMensaje(
         `Reporte generado: ${rep.ruta_archivo}`
@@ -293,10 +267,14 @@ export default function Dashboard() {
           />
           <Tarjeta
             titulo="Cumplimiento de ventanas"
-            valor={datos.ventanas.cumplimiento_pct}
-            unidad="%"
+            valor={datos.ventanas.tiene_datos
+              ? datos.ventanas.cumplimiento_pct
+              : 'Sin datos'}
+            unidad={datos.ventanas.tiene_datos ? '%' : ''}
             tono={
-              datos.ventanas.cumplimiento_pct >= 90
+              !datos.ventanas.tiene_datos
+                ? ''
+                : datos.ventanas.cumplimiento_pct >= 90
                 ? 'bien'
                 : 'alerta'
             }
@@ -460,6 +438,22 @@ export default function Dashboard() {
       <section>
         <h2>Reportes de sostenibilidad</h2>
 
+        <div className="campo">
+          <label htmlFor="ruta-reporte">Ruta del reporte</label>
+          <select
+            id="ruta-reporte"
+            value={rutaReporte}
+            onChange={(event) => setRutaReporte(event.target.value)}
+          >
+            <option value="">Consolidado (todas las rutas activas)</option>
+            {rutas.map((ruta) => (
+              <option key={ruta.id_ruta} value={ruta.id_ruta}>
+                Ruta {ruta.id_ruta} - {ruta.estado}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div className="form-actions">
           <button
             type="button"
@@ -522,7 +516,14 @@ export default function Dashboard() {
                         r.fecha_generacion
                       ).toLocaleString('es-PE')}
                     </td>
-                    <td>{r.ruta_archivo}</td>
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => void descargarReporte(r.id_reporte)}
+                      >
+                        Descargar CSV
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

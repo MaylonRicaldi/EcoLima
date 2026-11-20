@@ -22,7 +22,7 @@ import {
 
 test('preserves documented cost, emissions and delay formulas', () => {
   assert.equal(calculateCo2(10, 0.9), 9)
-  assert.equal(equivalentTrees(1909), 86.77)
+  assert.equal(equivalentTrees(1909), 87)
   assert.equal(windowLatePenalty(30), 15)
   const tco = calculateTco(20, {
     tipo_combustible: 'DIESEL',

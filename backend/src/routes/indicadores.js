@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { OPERATIONS } from '../core/permissions.js'
 import { equivalentTrees } from '../services/calculations.js'
 import { PARAMS } from '../core/parameters.js'
+import { generateReportCsv, REPORT_TYPES } from '../services/reportes.js'
 
 // app.js integration:
 // const { indicadoresRouter, sostenibilidadRouter, reportesRouter } =
@@ -95,7 +96,8 @@ export function createIndicadoresRouters({ pool, authenticate, requirePermission
               COALESCE(SUM(co2_ahorrado_kg), 0) AS co2_ahorrado_kg,
               COALESCE(AVG(reduccion_co2_pct), 0) AS reduccion_co2_pct,
               COALESCE(AVG(reduccion_distancia_pct), 0) AS reduccion_distancia_pct,
-              COALESCE(AVG(cumplimiento_ventanas_pct), 0) AS cumplimiento_ventanas_pct
+              COALESCE(AVG(cumplimiento_ventanas_pct), 0) AS cumplimiento_ventanas_pct,
+              COUNT(cumplimiento_ventanas_pct) AS ventanas_registros
        FROM indicadores_ruta`
     )
     const { rows: [base] } = await pool.query(
@@ -132,7 +134,10 @@ export function createIndicadoresRouters({ pool, authenticate, requirePermission
         reduccion_co2_pct: round(savings.reduccion_co2_pct),
         reduccion_distancia_pct: round(savings.reduccion_distancia_pct),
       },
-      ventanas: { cumplimiento_pct: round(savings.cumplimiento_ventanas_pct) },
+      ventanas: {
+        cumplimiento_pct: round(savings.cumplimiento_ventanas_pct),
+        tiene_datos: number(savings.ventanas_registros) > 0,
+      },
       comparativo_sequencial: {
         distancia_base_km: round(base.distancia_base_km),
         distancia_optimizada_km: round(base.distancia_optimizada_km),
@@ -167,7 +172,9 @@ export function createIndicadoresRouters({ pool, authenticate, requirePermission
     return res.json(rows)
   }))
 
-  sostenibilidadRouter.post('/compensacion', authenticate, requirePermission('compensacion', OPERATIONS.WRITE), asyncRoute(async (_req, res) => {
+  sostenibilidadRouter.post('/compensacion', authenticate, requirePermission('compensacion', OPERATIONS.WRITE), asyncRoute(async (req, res) => {
+    const body = req.body && typeof req.body === 'object' ? req.body : {}
+    const provided = body.co2_a_compensar_kg
     const client = await pool.connect()
     try {
       await client.query('BEGIN')
@@ -176,16 +183,42 @@ export function createIndicadoresRouters({ pool, authenticate, requirePermission
          FROM rutas WHERE estado <> 'CANCELADA'`
       )
       const co2 = number(emissions.co2_total)
+      let co2ToOffset = co2
+      if (typeof provided !== 'undefined' && provided !== null && provided !== '') {
+        const parsed = Number(provided)
+        if (!Number.isFinite(parsed) || parsed <= 0 || parsed > co2) {
+          await client.query('ROLLBACK')
+          return sendValidation(res, [{
+            loc: ['body', 'co2_a_compensar_kg'],
+            msg: 'Debe ser un numero positivo que no supere las emisiones totales',
+            type: 'value_error',
+          }])
+        }
+        co2ToOffset = parsed
+      }
+      const { rows: [existing] } = await client.query(
+        `SELECT ${compensationColumns()} FROM compensacion_carbono cc
+         WHERE cc.co2_total_kg = $1
+           AND cc.co2_a_compensar_kg = $2
+           AND cc.factor_captura_arbol_kg = $3
+           AND cc.fecha_calculo >= CURRENT_DATE
+         ORDER BY cc.id_compensacion DESC LIMIT 1`,
+        [co2, co2ToOffset, PARAMS.co2PerTreePerYearKg],
+      )
+      if (existing) {
+        await client.query('COMMIT')
+        return res.status(200).json(existing)
+      }
       const { rows: [created] } = await client.query(
         `INSERT INTO compensacion_carbono (
            co2_total_kg, co2_a_compensar_kg, factor_captura_arbol_kg,
            proyecto_reforestacion, ubicacion
          )
-         VALUES ($1, $1, $2,
+         VALUES ($1, $2, $3,
                  'Programa Arboles para Lima - Parque Zonal Huascar',
                  'Parque Zonal Huascar, Lima Este')
          RETURNING id_compensacion`,
-        [co2, PARAMS.co2PerTreePerYearKg]
+        [co2, co2ToOffset, PARAMS.co2PerTreePerYearKg]
       )
       const { rows: [compensation] } = await client.query(
         `SELECT ${compensationColumns()} FROM compensacion_carbono cc
@@ -193,7 +226,7 @@ export function createIndicadoresRouters({ pool, authenticate, requirePermission
         [created.id_compensacion]
       )
       await client.query('COMMIT')
-      return res.json(compensation)
+      return res.status(201).json(compensation)
     } catch (error) {
       await client.query('ROLLBACK').catch(() => {})
       throw error
@@ -222,6 +255,14 @@ export function createIndicadoresRouters({ pool, authenticate, requirePermission
   }))
 
   reportesRouter.get('/', authenticate, requirePermission('reportes', OPERATIONS.READ), asyncRoute(async (req, res) => {
+    const type = req.query.tipo
+    if (typeof type !== 'undefined' && !REPORT_TYPES.includes(type)) {
+      return sendValidation(res, [{
+        loc: ['query', 'tipo'],
+        msg: 'Tipo de reporte invalido',
+        type: 'value_error',
+      }])
+    }
     const { rows } = await pool.query(
       `SELECT rp.id_reporte, rp.id_ruta, rp.usuario_generador, rp.tipo,
               rp.fecha_generacion, rp.ruta_archivo, u.nombre AS usuario_nombre
@@ -237,35 +278,64 @@ export function createIndicadoresRouters({ pool, authenticate, requirePermission
     const errors = []
     const type = req.query.tipo
     if (typeof type === 'undefined') addError(errors, 'tipo', 'Field required', 'query', 'missing')
-    const routeId = integerQuery(req.query.id_ruta, 'id_ruta', errors, true)
+    const routeId = integerQuery(req.query.id_ruta, 'id_ruta', errors, false)
     if (errors.length) return sendValidation(res, errors)
-    if (!['SOSTENIBILIDAD', 'TCO', 'COMPENSACION', 'AUDITORIA'].includes(type)) {
+    if (!REPORT_TYPES.includes(type)) {
       return res.status(422).json({ detail: 'El tipo debe ser SOSTENIBILIDAD, TCO, COMPENSACION o AUDITORIA' })
     }
-    if (routeId !== null) {
-      const { rows: [route] } = await pool.query('SELECT id_ruta FROM rutas WHERE id_ruta = $1', [routeId])
-      if (!route) return res.status(404).json({ detail: 'La ruta no existe' })
+    let generated
+    try {
+      generated = await generateReportCsv({ pool, type, routeId })
+    } catch (error) {
+      if (error.statusCode === 404) {
+        return res.status(404).json({ detail: error.message })
+      }
+      throw error
     }
-    const filename = `reporte_${type.toLowerCase()}_${routeId || 'consolidado'}_${isoDateToday()}.csv`
     const client = await pool.connect()
     try {
       await client.query('BEGIN')
       const { rows: [created] } = await client.query(
-        `INSERT INTO reportes (id_ruta, usuario_generador, tipo, ruta_archivo)
-         VALUES ($1, $2, $3, $4) RETURNING id_reporte`,
-        [routeId, req.user.id_usuario, type, filename]
+        `INSERT INTO reportes (id_ruta, usuario_generador, tipo, ruta_archivo, contenido_csv)
+         VALUES ($1, $2, $3, $4, $5) RETURNING id_reporte`,
+        [routeId, req.user.id_usuario, type, generated.filename, generated.content]
       )
       const { rows: [report] } = await client.query(
         'SELECT * FROM reportes WHERE id_reporte = $1', [created.id_reporte]
       )
       await client.query('COMMIT')
-      return res.json(report)
+      return res.status(201).json(report)
     } catch (error) {
       await client.query('ROLLBACK').catch(() => {})
       throw error
     } finally {
       client.release()
     }
+  }))
+
+  reportesRouter.get('/:id/descargar', authenticate, requirePermission('reportes', OPERATIONS.READ), asyncRoute(async (req, res) => {
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id) || id <= 0) {
+      return sendValidation(res, [{
+        loc: ['path', 'id'],
+        msg: 'El identificador debe ser un entero positivo',
+        type: 'int_parsing',
+      }])
+    }
+    const { rows: [report] } = await pool.query(
+      `SELECT id_reporte, ruta_archivo, contenido_csv
+       FROM reportes WHERE id_reporte = $1`,
+      [id],
+    )
+    if (!report) {
+      return res.status(404).json({ detail: 'El reporte no existe' })
+    }
+    if (typeof report.contenido_csv !== 'string' || report.contenido_csv.length === 0) {
+      return res.status(404).json({ detail: 'El archivo del reporte no esta disponible' })
+    }
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+    res.setHeader('Content-Disposition', `attachment; filename="${report.ruta_archivo}"`)
+    return res.send(report.contenido_csv)
   }))
 
   reportesRouter.get('/sostenibilidad', authenticate, requirePermission('reportes', OPERATIONS.READ), asyncRoute(async (req, res) => {

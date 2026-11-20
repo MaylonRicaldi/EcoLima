@@ -370,7 +370,7 @@ CREATE TABLE compensacion_carbono (
     co2_total_kg DECIMAL(12,2) NOT NULL CHECK (co2_total_kg >= 0),
     co2_a_compensar_kg DECIMAL(12,2) NOT NULL CHECK (co2_a_compensar_kg >= 0),
     factor_captura_arbol_kg DECIMAL(10,4) NOT NULL DEFAULT 22.0 CHECK (factor_captura_arbol_kg > 0),
-    arboles_necesarios DECIMAL(10,2) GENERATED ALWAYS AS (ROUND(co2_a_compensar_kg / NULLIF(factor_captura_arbol_kg,0),2)) STORED,
+    arboles_necesarios BIGINT GENERATED ALWAYS AS (CEIL(co2_a_compensar_kg / NULLIF(factor_captura_arbol_kg,0))) STORED,
     proyecto_reforestacion VARCHAR(200) NOT NULL,
     ubicacion VARCHAR(200),
     costo_estimado DECIMAL(12,2) CHECK (costo_estimado >= 0),
@@ -386,7 +386,8 @@ CREATE TABLE reportes (
     usuario_generador INT NOT NULL REFERENCES usuarios(id_usuario) ON DELETE RESTRICT,
     tipo VARCHAR(50) NOT NULL CHECK (tipo IN ('SOSTENIBILIDAD','TCO','COMPENSACION','AUDITORIA')),
     fecha_generacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    ruta_archivo TEXT NOT NULL
+    ruta_archivo TEXT NOT NULL,
+    contenido_csv TEXT
 );
 CREATE INDEX idx_reportes_ruta ON reportes(id_ruta);
 CREATE INDEX idx_reportes_usuario ON reportes(usuario_generador);

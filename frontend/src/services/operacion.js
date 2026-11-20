@@ -360,6 +360,29 @@ export async function generarReporte(tipo, idRuta) {
   })
 }
 
+export async function descargarReporte(idReporte) {
+  const token = getToken()
+  const response = await fetch(`${API_URL}/reportes/${idReporte}/descargar`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!response.ok) {
+    throw new Error(response.status === 404
+      ? 'El reporte o su archivo no existe.'
+      : 'No se pudo descargar el reporte.')
+  }
+  const blob = await response.blob()
+  const disposition = response.headers.get('Content-Disposition') || ''
+  const filenameMatch = disposition.match(/filename="([^"]+)"/)
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filenameMatch?.[1] || `reporte_${idReporte}.csv`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
 export async function obtenerReporteSostenibilidad(idRuta) {
   return solicitud(
     `/reportes/sostenibilidad?id_ruta=${idRuta}`
