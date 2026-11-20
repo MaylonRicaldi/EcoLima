@@ -323,8 +323,7 @@ Evidencias de la revisión, incluidas en la entrega junto con este documento:
 - Captura de los pasos de E2E-05, la generación de un reporte de sostenibilidad.
 
 <img width="1280" height="800" alt="image" src="https://github.com/user-attachments/assets/172941d8-801c-48d0-b9d7-b179c62c98a2" />
-<img width="661" height="485" alt="image" src="https://github.com/user-attachments/assets/6e049ae8-2b2a-4a0e-8c60-6ac2afb0afd5" />
-
+<img width="1280" height="800" alt="image" src="https://github.com/user-attachments/assets/7a1ea734-ffec-4a8e-89cf-a201173d1d2f" />
 
 Después de incorporar y ejecutar Playwright:
 
