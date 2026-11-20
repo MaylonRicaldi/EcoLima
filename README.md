@@ -1,22 +1,16 @@
 # EcoLima – EcoLogística Lima
 
-![CI]
-(https://github.com/MaylonRicaldi/EcoLima/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/MaylonRicaldi/EcoLima/actions/workflows/ci.yml/badge.svg)
 
-![Deploy]
-(https://github.com/MaylonRicaldi/EcoLima/actions/workflows/deploy-production.yml/badge.svg)
+![Deploy](https://github.com/MaylonRicaldi/EcoLima/actions/workflows/deploy-production.yml/badge.svg)
 
-![E2E]
-(https://github.com/MaylonRicaldi/EcoLima/actions/workflows/e2e.yml/badge.svg)
+![E2E](https://github.com/MaylonRicaldi/EcoLima/actions/workflows/e2e.yml/badge.svg)
 
-![Green Audit]
-(https://github.com/MaylonRicaldi/EcoLima/actions/workflows/green-audit.yml/badge.svg)
+![Green Audit](https://github.com/MaylonRicaldi/EcoLima/actions/workflows/green-audit.yml/badge.svg)
 
-![Sonarqube]
-(https://github.com/MaylonRicaldi/EcoLima/actions/workflows/sonarqube.yml/badge.svg)
+![Sonarqube](https://github.com/MaylonRicaldi/EcoLima/actions/workflows/sonarqube.yml/badge.svg)
 
-![Test]
-(https://github.com/MaylonRicaldi/EcoLima/actions/workflows/tests.yml/badge.svg)
+![Test](https://github.com/MaylonRicaldi/EcoLima/actions/workflows/tests.yml/badge.svg)
 
 **Optimizador de Rutas Sostenibles para DistriRápido S.A.C.**
 
