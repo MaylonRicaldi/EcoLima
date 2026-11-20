@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import {
   listarTrafico,
@@ -131,7 +131,7 @@ export default function Operacion() {
   const [mensaje, setMensaje] = useState('')
 
 
-  async function cargar() {
+  const cargar = useCallback(async (isMounted = () => true) => {
     try {
       setCargando(true)
       setError('')
@@ -142,6 +142,10 @@ export default function Operacion() {
         listarObstaculos(),
       ])
 
+      if (!isMounted()) {
+        return
+      }
+
       setTrafico(Array.isArray(t) ? t : [])
       setIncidentes(Array.isArray(i) ? i : [])
       setObstaculos(Array.isArray(o) ? o : [])
@@ -151,7 +155,13 @@ export default function Operacion() {
       try {
         const c = await listarConductores()
 
-        setConductores(Array.isArray(c) ? c : (c?.data ?? []))
+        if (!isMounted()) {
+          return
+        }
+
+        setConductores(
+          Array.isArray(c) ? c : (Array.isArray(c?.data) ? c.data : [])
+        )
 
         /* Si quien está dentro es conductor, no hay nada que elegir:
            el reporte es suyo y preguntárselo sería una tontería.
@@ -161,7 +171,9 @@ export default function Operacion() {
           setConductorIncidente('yo')
         }
       } catch {
-        setConductores([])
+        if (isMounted()) {
+          setConductores([])
+        }
       }
 
       /* Las rutas de fondo. No se manda ningún filtro: el servidor
@@ -171,11 +183,17 @@ export default function Operacion() {
       try {
         const m = await obtenerMapaRutas()
 
+        if (!isMounted()) {
+          return
+        }
+
         setRutasMapa(Array.isArray(m?.rutas) ? m.rutas : [])
       } catch {
         /* El mapa funciona sin las rutas de fondo: se pierde el
            contexto, no la función. */
-        setRutasMapa([])
+        if (isMounted()) {
+          setRutasMapa([])
+        }
       }
 
       /* La saturación se mira sobre la jornada de hoy, de 05:00 a
@@ -189,19 +207,29 @@ export default function Operacion() {
           hora_fin: '22:00',
         })
 
+        if (!isMounted()) {
+          return
+        }
+
         setSaturacion(s)
       } catch {
         /* Si no se puede consultar la saturación, el módulo sigue
            siendo utilizable: es un dato adicional, no una condición
            para trabajar. */
-        setSaturacion(null)
+        if (isMounted()) {
+          setSaturacion(null)
+        }
       }
     } catch (err) {
-      setError(err.message)
+      if (isMounted()) {
+        setError(err.message)
+      }
     } finally {
-      setCargando(false)
+      if (isMounted()) {
+        setCargando(false)
+      }
     }
-  }
+  }, [])
 
 
   /* Coloca un cono. Lo guarda en la calzada y no se quita solo: se
@@ -281,92 +309,15 @@ export default function Operacion() {
 
   useEffect(() => {
     let montado = true
-
-    async function cargarDesdeEfecto() {
-      try {
-        const [t, i, o] = await Promise.all([
-          listarTrafico(),
-          listarIncidentes(),
-          listarObstaculos(),
-        ])
-
-        if (!montado) {
-          return
-        }
-
-        setTrafico(Array.isArray(t) ? t : [])
-        setIncidentes(Array.isArray(i) ? i : [])
-        setObstaculos(Array.isArray(o) ? o : [])
-
-        /* Los conductores, para poder preguntar de quién es el
-           incidente antes de abrir el mapa. */
-        try {
-          const c = await listarConductores()
-
-          setConductores(Array.isArray(c) ? c : (c?.data ?? []))
-
-          /* Si quien está dentro es conductor, no hay nada que elegir:
-             el reporte es suyo y preguntárselo sería una tontería.
-             El backend ya recorta el mapa a sus rutas, así que basta
-             con dejar el desplegable en "mi ruta". */
-          if (getUsuario()?.rol === 'CONDUCTOR') {
-            setConductorIncidente('yo')
-          }
-        } catch {
-          setConductores([])
-        }
-
-        /* Las rutas de fondo. No se manda ningún filtro: el servidor
-           devuelve las del conductor si quien entra es conductor, y
-           todas si es otro. Filtrar aquí sería pedir datos que el
-           backend tiene que recortar igual. */
-        try {
-          const m = await obtenerMapaRutas()
-
-          setRutasMapa(Array.isArray(m?.rutas) ? m.rutas : [])
-        } catch {
-          /* El mapa funciona sin las rutas de fondo: se pierde el
-             contexto, no la función. */
-          setRutasMapa([])
-        }
-
-        /* La saturación se mira sobre la jornada de hoy, de 05:00 a
-           22:00 (RN-012). Es el panorama general que interesa al
-           operador: si hoy no da abasto, hay que saberlo sin tener
-           que abrir el formulario de un pedido. */
-        try {
-          const s = await consultarSaturacion({
-            fecha: new Date().toISOString().slice(0, 10),
-            hora_inicio: '05:00',
-            hora_fin: '22:00',
-          })
-
-          setSaturacion(s)
-        } catch {
-          /* Si no se puede consultar la saturación, el módulo sigue
-             siendo utilizable: es un dato adicional, no una condición
-             para trabajar. */
-          setSaturacion(null)
-        }
-      } catch (err) {
-        if (!montado) {
-          return
-        }
-
-        setError(err.message)
-      } finally {
-        if (montado) {
-          setCargando(false)
-        }
-      }
-    }
-
-    cargarDesdeEfecto()
+    const timer = window.setTimeout(() => {
+      void cargar(() => montado)
+    }, 0)
 
     return () => {
       montado = false
+      window.clearTimeout(timer)
     }
-  }, [])
+  }, [cargar])
 
 
   async function guardarTrafico(event) {
