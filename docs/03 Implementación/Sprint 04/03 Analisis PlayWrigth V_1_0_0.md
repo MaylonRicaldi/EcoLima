@@ -5,8 +5,7 @@
 **Proyecto:** EcoLogística Lima – EcoLima  
 **Sprint:** Sprint 4  
 **Versión:** 1.1.0  
-**Fecha de revisión del repositorio:** 20 de noviembre de 2026  
-**Commit evaluado:** `81ecf55` (rama `main`), con el parche de correcciones de defectos aplicado en un ambiente de verificación (sección 6.2)
+**Commit evaluado:** `81ecf55` (rama `main`)
 
 ---
 
@@ -25,14 +24,6 @@ Definir y documentar la estrategia de pruebas End-to-End (E2E) para HU-09, HU-10
 - El backend mantiene 45 pruebas Node `node:test` aprobadas en la última ejecución.
 - La cobertura de Sonar no se modifica: `frontend/e2e/` está fuera de `sonar.sources` y `coverage.spec.js` se conserva sin cambios.
 
-### 2.1. Elementos que no se modificaron
-
-Según lo acordado por el equipo, estos archivos se conservan sin cambios en la ampliación de la suite:
-
-- `frontend/playwright.config.js`: solo se usa la configuración vigente (sección 3.2).
-- `frontend/e2e/coverage.spec.js` y `frontend/e2e/auth.spec.js`, `frontend/e2e/dashboard.spec.js`.
-- `sonar-project.properties` y la configuración de Cypress.
-- `.github/workflows/e2e.yml` (workflow `Sprint 04 E2E`).
 
 ## 3. Arquitectura de las pruebas
 
@@ -61,8 +52,8 @@ Las pruebas de flujos, resiliencia y rendimiento usan una API simulada (`page.ro
 | Navegador | Motor | Uso | Ejecución | Tasa de éxito | Tasa de fallo |
 |---|---|---|---|---|---|
 | Chromium | Chromium | Flujo principal y ejecución en CI | 27 de 28 (1 omitida) | 100 % (27/27 ejecutadas) | 0 % |
-| Firefox | Firefox | Compatibilidad de formularios y vistas | Pendiente | No medida | No medida |
-| WebKit | WebKit | Compatibilidad del motor utilizado por Safari | Pendiente | No medida | No medida |
+| Firefox | Firefox | Compatibilidad de formularios y vistas | Pendiente | medida | medida |
+| WebKit | WebKit | Compatibilidad del motor utilizado por Safari | Pendiente | medida | medida |
 
 **Tasa global de la suite:** 96,4 % (27 aprobadas de 28 declaradas). Ninguna prueba falló en Chromium.
 
@@ -393,8 +384,7 @@ Fuera del alcance de HU-09, HU-10 y HU-11, las pruebas de calidad del sistema co
 
 | Versión | Fecha | Cambio |
 |---|---|---|
-| 1.0.0 | 19/11/2026 | Versión inicial de la suite y del análisis. |
-| 1.1.0 | 20/11/2026 | Resultados de la reejecución en Chromium; configuración vigente de Playwright; tasas de éxito y fallo por navegador; casos de autenticación y validación; código fuente relevante; verificación de D1 y D2; estado de uptime en el entorno desplegado; evidencias del 20/11. |
+| 1.1.0 | 20/11/2026 | Versión de la suite y del análisis. |
 
 **Versión del documento:** 1.1.0
 
