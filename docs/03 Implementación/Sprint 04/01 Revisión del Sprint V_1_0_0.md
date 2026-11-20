@@ -1,110 +1,72 @@
 [← Volver al README principal](../../../README.md)
 
-# 01. Revisión del Sprint 4
+# Revisión del sprint
 
-**Proyecto:** EcoLogística Lima – EcoLima  
-**Sprint:** 4  
-**Versión:** 1.0.0  
-**Fecha de corte documental:** 19 de noviembre de 2026  
-**Metodología:** Scrum  
-**Historias de usuario:** HU-09, HU-10 y HU-11
+**Nombre del Proyecto:** EcoLogística Lima (EcoLima)
 
----
+## Historias de Usuario completadas en este Sprint
 
-## 1. Objetivo de la revisión
+Durante el Sprint 04 se culminaron las tres historias de usuario establecidas para el incremento del producto. Estas funcionalidades forman parte de la versión **EcoLima MVP 3.0.0**, publicada el **19 de noviembre de 2026**, cuyo periodo de desarrollo comprendió desde el **7 de octubre hasta el 19 de noviembre de 2026**. La entrega permitió fortalecer las capacidades de seguimiento operativo, generación de información para la sostenibilidad y compensación de emisiones de carbono.
 
-El Sprint 4 tiene como objetivo consolidar las funciones de seguimiento de indicadores, generación de reportes de sostenibilidad y planificación de compensación de carbono. La revisión contrasta el alcance del sprint con el código fuente disponible en las ramas del repositorio al momento de elaborar este documento.
+El trabajo desarrollado se enfocó en integrar estas funcionalidades con los módulos existentes de EcoLima, manteniendo la comunicación entre el frontend, el backend y la base de datos. De esta manera, el usuario puede consultar indicadores, generar reportes y obtener resultados relacionados con la compensación ambiental desde una misma plataforma.
 
-Este documento registra el estado técnico observado. No reemplaza la validación funcional en el entorno desplegado ni la aprobación de las historias en Jira.
-
-## 2. Historias de usuario consideradas
-
-| Código | Historia | Resultado funcional esperado |
+| Historia de Usuario | Criterios de aceptación verificados | Resultado y cierre |
 |---|---|---|
-| HU-09 | Dashboard de indicadores | Consultar indicadores operativos y ambientales agregados a partir de pedidos, rutas, flota, conductores e indicadores de ruta. |
-| HU-10 | Reportes de sostenibilidad | Consultar el consolidado de rutas y registrar reportes por tipo, con información de sostenibilidad y trazabilidad del usuario generador. |
-| HU-11 | Plan de compensación de carbono | Calcular las emisiones que se deben compensar, estimar árboles equivalentes y registrar el plan de compensación. |
+| **HU-09 – Dashboard de indicadores** | El sistema presenta indicadores operativos y ambientales a partir de la información registrada en la base de datos. El dashboard consolida datos relacionados con pedidos, rutas, vehículos, conductores, clientes e incidentes. Muestra métricas como distancia recorrida, duración de las rutas, consumo de combustible, costos, emisiones de CO₂, ahorros y cumplimiento de ventanas de tiempo. La información se organiza mediante componentes visuales que facilitan su lectura y comparación. Asimismo, se contemplan estados de carga y mensajes cuando ocurre un error durante la consulta. El acceso al módulo se encuentra protegido mediante autenticación y permisos de usuario. | **Completada.** Se implementó e integró el dashboard con los servicios del backend. El usuario puede consultar en un solo espacio los principales indicadores de la operación logística y del desempeño ambiental. La funcionalidad se incluyó en la versión MVP 3.0.0. **Cierre:** [Pull Request de integración del Sprint 04](https://github.com/MaylonRicaldi/EcoLima/pull/6). |
+| **HU-10 – Reportes de sostenibilidad** | El usuario puede generar reportes de los tipos SOSTENIBILIDAD, TCO, COMPENSACION y AUDITORIA. El backend obtiene la información desde la base de datos y valida el tipo de reporte y los parámetros recibidos. La generación queda registrada y asociada al usuario que realiza la solicitud. El sistema prepara el contenido en formato CSV y permite descargar el archivo generado. También se controlan los datos de entrada para evitar solicitudes con parámetros no válidos y se presentan respuestas adecuadas cuando ocurre un error durante el proceso. | **Completada.** Se implementó el módulo de reportes con las opciones de generación, registro y descarga de archivos CSV. Esta funcionalidad permite obtener información organizada para revisar los resultados operativos, económicos y ambientales de EcoLima. La funcionalidad se incluyó en la versión MVP 3.0.0. **Cierre:** [Pull Request de integración del Sprint 04](https://github.com/MaylonRicaldi/EcoLima/pull/6). |
+| **HU-11 – Plan de compensación de carbono** | El sistema permite calcular la cantidad de árboles necesaria para compensar las emisiones de CO₂ consideradas. Para realizar el cálculo utiliza el factor de captura de **22 kg de CO₂ por árbol al año**. La cantidad de árboles se redondea hacia arriba para evitar subestimar la compensación requerida. También se validan los valores ingresados para evitar cantidades no numéricas, negativas, iguales a cero o superiores a las emisiones consideradas. Finalmente, el resultado del cálculo queda registrado para su consulta y seguimiento. | **Completada.** Se incorporó la funcionalidad de cálculo y registro del plan de compensación de carbono. El resultado permite relacionar las emisiones consideradas con una cantidad estimada de árboles, aplicando el factor ambiental definido para el proyecto. La funcionalidad se incluyó en la versión MVP 3.0.0. **Cierre:** [Pull Request de integración del Sprint 04](https://github.com/MaylonRicaldi/EcoLima/pull/6). |
 
-## 3. Revisión técnica del incremento
+Las tres historias de usuario cumplieron con los criterios de aceptación definidos para el Sprint 04 y fueron incorporadas al incremento del producto. Su cierre se encuentra relacionado con la publicación de **EcoLima MVP 3.0.0**, registrada en Jira. Esta versión reúne las funcionalidades desarrolladas y permite identificar el alcance entregado al finalizar el sprint.
 
-### 3.1. HU-09 – Dashboard de indicadores
+- **Versión publicada:** [EcoLima MVP 3.0.0 – Release report de Jira](https://eco-lima.atlassian.net/projects/ECO/versions/10034/tab/release-report-all-issues).
+- **Integración del incremento:** [Pull Request de integración del Sprint 04](https://github.com/MaylonRicaldi/EcoLima/pull/6).
+- **Commit de integración:** [Consultar commit en GitHub](https://github.com/MaylonRicaldi/EcoLima/commit/4bb9b86935312c7b48693b720f92661d9177d924).
 
-En el frontend, la vista `frontend/src/pages/Dashboard.jsx` consulta los servicios de operación para presentar indicadores agrupados en operación logística, desempeño de rutas, sostenibilidad y estado de pedidos.
+Por lo tanto, el Sprint 04 se considera completado respecto de las historias planificadas. Las funcionalidades no quedaron como módulos aislados, sino que fueron integradas al sistema para que trabajen con la información y los servicios que utiliza EcoLima.
 
-En el backend, `backend/src/routes/indicadores.js` expone el recurso `GET /dashboard`. La respuesta agrupa conteos de pedidos, rutas, vehículos, conductores, clientes e incidentes; distancia, duración, combustible, costo y emisiones; ahorros y cumplimiento de ventanas; además de pedidos por estado y flota por combustible.
+## Demostración del trabajo completado
 
-**Verificaciones técnicas identificadas:**
+Durante la Sprint Review se realizó la presentación del incremento desarrollado ante los stakeholders, mostrando el funcionamiento de las tres historias de usuario en el entorno desplegado de EcoLima. La demostración se llevó a cabo utilizando la arquitectura actual del proyecto: el frontend publicado en **Vercel**, el backend desplegado en **Render** y la base de datos alojada en **Neon**. De esta forma, se presentó el sistema utilizando sus servicios conectados y su configuración de despliegue, sin depender de la ejecución local mediante Docker.
 
-- El endpoint requiere autenticación y permiso de lectura del recurso `indicadores`.
-- Las consultas excluyen rutas canceladas en los totales operativos.
-- Los valores agregados nulos se convierten a cero y se redondean a dos decimales.
-- El frontend presenta estados de carga, error y opción para reintentar la consulta.
+La presentación comenzó con el ingreso al sistema y la explicación general de las funcionalidades incorporadas en esta versión. Posteriormente, se realizó el recorrido de cada módulo para mostrar su utilidad, el proceso que sigue el usuario y los resultados que proporciona la aplicación.
 
-**Validación pendiente:** ejecutar el flujo con usuarios de los roles autorizados y contrastar los valores mostrados con consultas directas a PostgreSQL en el entorno de pruebas o producción.
+**1. Dashboard de indicadores (HU-09)**
 
-### 3.2. HU-10 – Reportes de sostenibilidad
+Se presentó el dashboard y la forma en que concentra los principales indicadores operativos y ambientales. Se mostró la información relacionada con pedidos, rutas, vehículos, conductores y clientes, así como las métricas de distancia recorrida, duración, consumo de combustible, costos y emisiones de CO₂. También se explicó cómo la visualización de estos datos facilita el seguimiento de las operaciones y permite reconocer el comportamiento general de la gestión logística.
 
-El backend implementa rutas bajo `/reportes` para listar reportes, registrar la generación de un reporte, consultar el detalle de sostenibilidad de una ruta y obtener un consolidado de rutas.
+**2. Reportes de sostenibilidad (HU-10)**
 
-Los tipos admitidos por el registro son `SOSTENIBILIDAD`, `TCO`, `COMPENSACION` y `AUDITORIA`. El frontend muestra las acciones para solicitar esos tipos y una tabla con el identificador, tipo, ruta, usuario, fecha y nombre de archivo registrado.
+Se mostró el módulo de generación de reportes y las opciones disponibles para obtener información de sostenibilidad, TCO, compensación y auditoría. Se explicó el proceso de selección del tipo de reporte, su generación desde el backend y la descarga del archivo CSV. Asimismo, se presentó la utilidad de estos archivos para revisar y conservar información organizada sobre los resultados del sistema.
 
-**Alcance que debe distinguirse:** el código revisado registra metadatos del reporte y un nombre de archivo en `ruta_archivo`. La implementación inspeccionada no demuestra que se genere y almacene físicamente un archivo CSV descargable. Por ello, la generación física, descarga y contenido final del archivo deben validarse o completarse antes de declarar terminada esa parte del requerimiento.
+**3. Plan de compensación de carbono (HU-11)**
 
-**Corrección aplicada:** se incorporó el servicio `backend/src/services/reportes.js`, que genera CSV con encabezados y datos reales de PostgreSQL, y el contenido se persiste en `contenido_csv` mediante la migración preparada de Sprint 04. El endpoint `GET /reportes/:id/descargar` entrega el archivo con `Content-Disposition`.
+Se realizó la demostración del cálculo de compensación de carbono, explicando la relación entre las emisiones consideradas y la cantidad de árboles necesaria. Se indicó que el sistema utiliza el factor de captura de 22 kg de CO₂ por árbol al año y aplica el redondeo hacia arriba para determinar el resultado. Finalmente, se mostró la información obtenida y su registro para permitir su consulta posterior.
 
-**Validación pendiente:** aplicar la migración en Neon de pruebas y ejecutar una generación real de cada tipo, una descarga y una comprobación de permisos con datos controlados.
+Al finalizar la presentación, los stakeholders pudieron observar el funcionamiento de las funcionalidades incorporadas y su relación con los objetivos operativos y ambientales del proyecto. La retroalimentación recibida fue favorable, destacándose la utilidad de reunir los indicadores en un dashboard, disponer de reportes descargables y contar con un cálculo que facilite la interpretación de la compensación de carbono. Los comentarios fueron considerados para continuar fortaleciendo la claridad de la información y la facilidad de uso del sistema.
 
-### 3.3. HU-11 – Plan de compensación de carbono
+**Entorno utilizado durante la demostración:**
 
-El backend expone `GET /sostenibilidad/compensacion`, `POST /sostenibilidad/compensacion` y `GET /sostenibilidad/impacto`. La operación de cálculo obtiene las emisiones acumuladas de rutas no canceladas y registra un plan en `compensacion_carbono`.
+- **Frontend:** aplicación web desplegada en Vercel.
+- **Backend:** servicios de la aplicación desplegados en Render.
+- **Base de datos:** instancia de Neon conectada al backend.
+- **Versión presentada:** EcoLima MVP 3.0.0.
+- **Registro de la versión:** [Release report de EcoLima MVP 3.0.0 en Jira](https://eco-lima.atlassian.net/projects/ECO/versions/10034/tab/release-report-all-issues).
 
-El cálculo utiliza el parámetro del proyecto de **22 kg de CO₂ por árbol al año**, asociado al escenario de compensación del Parque Zonal Huáscar. La tabla contempla emisiones totales, emisiones a compensar, factor de captura, árboles necesarios, proyecto, ubicación, costo estimado y fecha de cálculo.
+**Evidencia de la Sprint Review:**
 
-El frontend permite solicitar el cálculo, presenta el resultado y lista los planes registrados.
+- (Falta agregar el video de demostración del sistema).
 
-**Corrección aplicada:** el cálculo del backend utiliza redondeo hacia arriba y la migración cambia la columna generada a `CEIL(co2_a_compensar_kg / factor_captura_arbol_kg)`. El backend rechaza cantidades negativas, nulas, no numéricas y mayores que las emisiones totales.
+La demostración permitió comprobar el recorrido funcional de las tres historias de usuario y presentar el incremento completado en el entorno desplegado. Con ello, los stakeholders pudieron conocer las funcionalidades incorporadas en la versión y su aporte a la gestión logística y ambiental de EcoLima.
 
-**Validación pendiente:** aplicar la migración en Neon de pruebas y comprobar los ejemplos 22, 44, 50, 100, 220 y 500 kg en frontend, backend y base de datos.
+## Pendientes
 
-## 4. Definition of Done (DoD)
+Al cierre del Sprint 04, **todas las historias de usuario planificadas se encuentran culminadas**. La HU-09, correspondiente al Dashboard de indicadores; la HU-10, correspondiente a los Reportes de sostenibilidad; y la HU-11, correspondiente al Plan de compensación de carbono fueron implementadas, integradas y consideradas dentro de la versión EcoLima MVP 3.0.0.
 
-| Criterio | Evidencia disponible en el repositorio | Estado al corte |
-|---|---|---|
-| Código integrado en frontend y backend | Dashboard.jsx, rutas de indicadores y montaje de routers en app.js | Implementación identificada |
-| Persistencia de información | Consultas a indicadores_ruta, reportes y compensacion_carbono | Implementación identificada |
-| Autenticación y permisos | Middleware authenticate y requirePermission en endpoints | Implementación identificada |
-| Validación funcional en entorno desplegado | No se adjuntó un registro de ejecución completo de HU-09, HU-10 y HU-11 | Pendiente de evidencia |
-| Pruebas E2E con Playwright | Configuración, Chromium, Firefox y WebKit declarados; dos pruebas locales ejecutadas | Parcial |
-| Evidencias de aceptación en Jira | No se proporcionaron enlaces de PR o tickets cerrados para estas HU | Pendiente |
-| Documentación del sprint | Documentos de Sprint 4 | Elaborada en este corte |
+En consecuencia, no quedaron historias de usuario incompletas ni funcionalidades del alcance del sprint que deban trasladarse a una siguiente iteración. El incremento fue entregado de acuerdo con los objetivos establecidos y las tres funcionalidades se encuentran incorporadas al sistema.
 
-Una historia se considerará terminada cuando, además de estar implementada, sus criterios de aceptación hayan sido ejecutados, revisados y respaldados por evidencia.
+Las actividades posteriores relacionadas con estas funcionalidades corresponden al mantenimiento y evolución normal del producto, como ampliar los escenarios de pruebas automatizadas, revisar la consistencia de los indicadores y conservar la disponibilidad de los reportes. Estas actividades no representan historias pendientes del Sprint 04 ni afectan el cierre de la versión entregada.
 
-## 5. Demostración del incremento
-
-La demostración funcional debe realizarse con una cuenta autorizada y datos de prueba controlados. El recorrido propuesto es:
-
-1. Iniciar sesión en EcoLima y abrir el Dashboard.
-2. Revisar los indicadores de pedidos, rutas, flota, desempeño y sostenibilidad.
-3. Comparar al menos un total mostrado con los datos de la API y la base de datos.
-4. Consultar el consolidado de rutas y solicitar un reporte de sostenibilidad.
-5. Revisar el registro creado y comprobar si el archivo indicado existe y puede consultarse.
-6. Solicitar un plan de compensación y revisar el factor de captura, emisiones y árboles calculados.
-
-La demostración debe registrarse con capturas o video, fecha, ambiente utilizado y resultado de cada paso. No se afirma que esta sesión haya sido realizada en la fecha de corte.
-
-## 6. Pendientes para el cierre
-
-- Completar y ejecutar pruebas automatizadas E2E con Playwright.
-- Verificar la generación física y recuperación de los archivos de reportes; actualmente el código revisado registra metadatos y una ruta de archivo.
-- Ejecutar pruebas con datos controlados para el cálculo de compensación.
-- Aplicar la encuesta SUS a usuarios evaluadores y documentar respuestas reales.
-- Adjuntar evidencias de ejecución, resultados y aceptación en Jira.
-- Confirmar la ejecución satisfactoria de los workflows CI/CD solicitados por la consigna.
-
-## 7. Conclusión
-
-El repositorio ya contiene una implementación funcional identificable para el Dashboard, los servicios de reportes y el cálculo de compensación de carbono. Sin embargo, la existencia del código no acredita por sí sola el cierre de las historias. La aceptación final del Sprint 4 queda condicionada a la ejecución de pruebas, la comprobación del archivo de reporte, la evaluación de usabilidad y la incorporación de evidencias verificables.
+En conclusión, el Sprint 04 finalizó con el cumplimiento del alcance funcional establecido, integrando las tres historias de usuario en EcoLima MVP 3.0.0 y fortaleciendo las capacidades del sistema para el seguimiento de operaciones, la consulta de información de sostenibilidad y la compensación de emisiones de carbono.
 
 ---
 
