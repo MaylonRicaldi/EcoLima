@@ -4,8 +4,6 @@
 
 **Nombre del Proyecto:** EcoLogística Lima (EcoLima)
 
-**Líder del Proyecto:** Diego Marlon Quispe Povis
-
 ## Historias de Usuario completadas en este Sprint
 
 Durante el Sprint 04 se culminaron las tres historias de usuario establecidas para el incremento del producto. Estas funcionalidades forman parte de la versión **EcoLima MVP 3.0.0**, publicada el **19 de noviembre de 2026**, cuyo periodo de desarrollo comprendió desde el **7 de octubre hasta el 19 de noviembre de 2026**. La entrega permitió fortalecer las capacidades de seguimiento operativo, generación de información para la sostenibilidad y compensación de emisiones de carbono.
