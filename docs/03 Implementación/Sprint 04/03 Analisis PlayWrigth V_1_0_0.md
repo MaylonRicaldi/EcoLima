@@ -5,7 +5,6 @@
 **Proyecto:** EcoLogística Lima – EcoLima  
 **Sprint:** Sprint 4  
 **Versión:** 1.1.0  
-**Commit evaluado:** `81ecf55` (rama `main`)
 
 ---
 
@@ -316,12 +315,15 @@ Evidencias visuales capturadas el 19 de noviembre de 2026:
 
 ![Reporte HTML de Playwright](./evidencias/playwright-reporte-resumen.png)
 
-Evidencias de la revisión del 20 de noviembre de 2026, incluidas en la entrega junto con este documento:
+Evidencias de la revisión, incluidas en la entrega junto con este documento:
 
 - `reporte-html-playwright.zip`: reporte HTML completo de la ejecución en Chromium (27 aprobadas, 1 omitida). Abrir `index.html`.
 - Captura del resumen del reporte HTML, con la lista de pruebas y los contadores.
 - Captura del detalle de API-08, con los 10 llamados a cada endpoint y sus tiempos.
 - Captura de los pasos de E2E-05, la generación de un reporte de sostenibilidad.
+
+<img width="1807" height="928" alt="image" src="https://github.com/user-attachments/assets/5c9dac8d-18b0-49a7-ab56-df60a752e6e3" />
+<img width="1856" height="904" alt="image" src="https://github.com/user-attachments/assets/24b7cb3e-2955-4459-af2b-63cbc01ed929" />
 
 Después de incorporar y ejecutar Playwright:
 
