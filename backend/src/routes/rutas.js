@@ -298,9 +298,10 @@ export function createRutasRouter(options) {
       }
     }
     const elapsedSeconds = () => Number(process.hrtime.bigint() - started) / 1e9
-    const created = await transaction(pool, (client) => persistOptimization(
+    const [created, persistenceWarnings] = await transaction(pool, (client) => persistOptimization(
       client, problem, planned, date, req.user.id_usuario, input.algoritmo, elapsedSeconds()
     ))
+    warnings.push(...persistenceWarnings)
     const seconds = Number(elapsedSeconds().toFixed(3))
     if (!problem._usar_calles_reales) {
       warnings.push('No se pudo consultar el motor de rutas: las distancias son una estimación por factor de rodeo, no el trazado real de las calles')

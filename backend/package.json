@@ -7,7 +7,7 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "test": "node --test",
-    "test:coverage": "c8 --reporter=text --reporter=lcov node --test"
+    "test:coverage": "c8 --reporter=text --reporter=lcov node --test && node scripts/normalize-lcov.js"
   },
   "engines": {
     "node": ">=20 <25"

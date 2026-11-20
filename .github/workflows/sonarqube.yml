@@ -49,6 +49,16 @@ jobs:
         run: npm ci
         working-directory: frontend
 
+      - name: Install Chromium for frontend coverage
+        run: npx playwright install --with-deps chromium
+        working-directory: frontend
+
+      - name: Generate frontend coverage
+        run: npm run test:coverage:browser
+        working-directory: frontend
+        env:
+          VITE_COVERAGE: '1'
+
       - name: Run frontend lint
         run: npm run lint
         working-directory: frontend
