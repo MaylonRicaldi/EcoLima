@@ -322,8 +322,9 @@ Evidencias de la revisión, incluidas en la entrega junto con este documento:
 - Captura del detalle de API-08, con los 10 llamados a cada endpoint y sus tiempos.
 - Captura de los pasos de E2E-05, la generación de un reporte de sostenibilidad.
 
-<img width="1807" height="928" alt="image" src="https://github.com/user-attachments/assets/5c9dac8d-18b0-49a7-ab56-df60a752e6e3" />
-<img width="1856" height="904" alt="image" src="https://github.com/user-attachments/assets/24b7cb3e-2955-4459-af2b-63cbc01ed929" />
+<img width="1280" height="800" alt="image" src="https://github.com/user-attachments/assets/172941d8-801c-48d0-b9d7-b179c62c98a2" />
+<img width="661" height="485" alt="image" src="https://github.com/user-attachments/assets/6e049ae8-2b2a-4a0e-8c60-6ac2afb0afd5" />
+
 
 Después de incorporar y ejecutar Playwright:
 
